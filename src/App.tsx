@@ -5,11 +5,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import LoginForm from "@/components/Auth/LoginForm";
-import Sidebar from "@/components/Layout/Sidebar";
+import AppSidebar from "@/components/Layout/AppSidebar";
 import Dashboard from "@/components/Dashboard/Dashboard";
 import BucketList from "@/components/Buckets/BucketList";
-import FileUpload from "@/components/Upload/FileUpload";
+import BucketDetails from "@/components/Buckets/BucketDetails";
+import UserManagement from "@/components/Users/UserManagement";
+import Analytics from "@/components/Analytics/Analytics";
+import Profile from "@/components/Profile/Profile";
 import AIChat from "@/components/AI/AIChat";
 
 const queryClient = new QueryClient();
@@ -30,12 +34,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   return (
-    <div className="flex">
-      <Sidebar />
-      <main className="flex-1 p-6 bg-slate-50 min-h-screen">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        <main className="flex-1 p-6 bg-slate-50">
+          {children}
+        </main>
+      </div>
+    </SidebarProvider>
   );
 };
 
@@ -53,9 +59,9 @@ const AppRoutes = () => {
           <BucketList />
         </ProtectedRoute>
       } />
-      <Route path="/upload" element={
+      <Route path="/buckets/:bucketId" element={
         <ProtectedRoute>
-          <FileUpload />
+          <BucketDetails />
         </ProtectedRoute>
       } />
       <Route path="/ai-chat" element={
@@ -65,26 +71,17 @@ const AppRoutes = () => {
       } />
       <Route path="/profile" element={
         <ProtectedRoute>
-          <div className="text-center p-8">
-            <h1 className="text-2xl font-bold">Profile Management</h1>
-            <p className="text-slate-600 mt-2">Update your profile information</p>
-          </div>
+          <Profile />
         </ProtectedRoute>
       } />
       <Route path="/users" element={
         <ProtectedRoute>
-          <div className="text-center p-8">
-            <h1 className="text-2xl font-bold">User Management</h1>
-            <p className="text-slate-600 mt-2">Manage system users</p>
-          </div>
+          <UserManagement />
         </ProtectedRoute>
       } />
       <Route path="/analytics" element={
         <ProtectedRoute>
-          <div className="text-center p-8">
-            <h1 className="text-2xl font-bold">Analytics Dashboard</h1>
-            <p className="text-slate-600 mt-2">View system statistics and insights</p>
-          </div>
+          <Analytics />
         </ProtectedRoute>
       } />
     </Routes>
