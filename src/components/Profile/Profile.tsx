@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { UserIcon, MailIcon, CalendarIcon, ShieldIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [bio, setBio] = useState('');
+  const [bio, setBio] = useState('Software developer passionate about cloud storage solutions and data management.');
 
   const handleSave = () => {
     // In a real app, this would make an API call
@@ -32,7 +33,7 @@ const Profile = () => {
   const handleCancel = () => {
     setName(user?.name || '');
     setEmail(user?.email || '');
-    setBio('');
+    setBio('Software developer passionate about cloud storage solutions and data management.');
     setIsEditing(false);
   };
 
@@ -47,10 +48,21 @@ const Profile = () => {
     }
   };
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="space-y-6 max-w-4xl">
+        <Breadcrumbs />
+        <div className="text-center py-12">
+          <p className="text-slate-500">Please log in to view your profile.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <Breadcrumbs />
+      
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Profile Settings</h1>
         <p className="text-slate-600 mt-2">Manage your account information and preferences</p>
@@ -71,7 +83,7 @@ const Profile = () => {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" disabled={!isEditing}>
                   Change Avatar
                 </Button>
                 <p className="text-sm text-slate-500 mt-1">

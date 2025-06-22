@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { SendIcon, BotIcon, UserIcon, FileIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SendIcon, BotIcon, UserIcon, FileIcon, FolderIcon } from 'lucide-react';
+import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 interface ChatMessage {
   id: string;
@@ -19,18 +21,38 @@ const AIChat = () => {
     {
       id: '1',
       type: 'ai',
-      message: 'Hello! I can help you analyze your uploaded files. Select a file and ask me questions about it.',
+      message: 'Hello! I can help you analyze your uploaded files. Select a bucket and file to get started.',
       timestamp: new Date(),
     },
   ]);
   const [inputMessage, setInputMessage] = useState('');
+  const [selectedBucket, setSelectedBucket] = useState('');
   const [selectedFile, setSelectedFile] = useState('');
 
-  const mockFiles = [
-    { id: '1', name: 'project-report.pdf', type: 'PDF Document' },
-    { id: '2', name: 'financial-data.xlsx', type: 'Excel Spreadsheet' },
-    { id: '3', name: 'meeting-notes.docx', type: 'Word Document' },
+  const mockBuckets = [
+    { id: '1', name: 'project-documents', fileCount: 24 },
+    { id: '2', name: 'media-assets', fileCount: 156 },
+    { id: '3', name: 'backup-files', fileCount: 8 },
   ];
+
+  const mockFiles: { [key: string]: Array<{ id: string; name: string; type: string }> } = {
+    '1': [
+      { id: '1', name: 'project-proposal.pdf', type: 'PDF Document' },
+      { id: '2', name: 'requirements.docx', type: 'Word Document' },
+      { id: '3', name: 'budget.xlsx', type: 'Excel Spreadsheet' },
+    ],
+    '2': [
+      { id: '4', name: 'logo.png', type: 'Image' },
+      { id: '5', name: 'video-demo.mp4', type: 'Video' },
+      { id: '6', name: 'banner.jpg', type: 'Image' },
+    ],
+    '3': [
+      { id: '7', name: 'database-backup.sql', type: 'SQL File' },
+      { id: '8', name: 'config-backup.json', type: 'JSON File' },
+    ],
+  };
+
+  const currentFiles = selectedBucket ? mockFiles[selectedBucket] || [] : [];
 
   const handleSendMessage = () => {
     if (!inputMessage.trim() || !selectedFile) return;
@@ -60,8 +82,15 @@ const AIChat = () => {
     setInputMessage('');
   };
 
+  const handleBucketChange = (bucketId: string) => {
+    setSelectedBucket(bucketId);
+    setSelectedFile(''); // Reset file selection when bucket changes
+  };
+
   return (
     <div className="space-y-6">
+      <Breadcrumbs />
+      
       <div>
         <h1 className="text-3xl font-bold text-slate-900">AI File Analysis</h1>
         <p className="text-slate-600 mt-2">Ask questions about your uploaded files</p>
@@ -70,30 +99,64 @@ const AIChat = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Select File</CardTitle>
+            <CardTitle className="text-lg">Select Files</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {mockFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedFile === file.name
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                  onClick={() => setSelectedFile(file.name)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <FileIcon className="w-4 h-4 text-slate-600" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{file.name}</p>
-                      <p className="text-xs text-slate-500">{file.type}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Choose Bucket</label>
+              <Select value={selectedBucket} onValueChange={handleBucketChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a bucket" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockBuckets.map((bucket) => (
+                    <SelectItem key={bucket.id} value={bucket.id}>
+                      <div className="flex items-center space-x-2">
+                        <FolderIcon className="w-4 h-4 text-blue-600" />
+                        <span>{bucket.name}</span>
+                        <Badge variant="secondary" className="ml-2">
+                          {bucket.fileCount} files
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            {selectedBucket && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Choose File</label>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {currentFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedFile === file.name
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                      onClick={() => setSelectedFile(file.name)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <FileIcon className="w-4 h-4 text-slate-600" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+                          <p className="text-xs text-slate-500">{file.type}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!selectedBucket && (
+              <div className="text-center py-8 text-slate-500">
+                <FolderIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <p className="text-sm">Select a bucket to see files</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
