@@ -3,6 +3,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FolderIcon, FileIcon, UsersIcon, HardDriveIcon } from 'lucide-react';
+import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -22,7 +23,9 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
+      <Breadcrumbs />
+      
       <div>
         <h1 className="text-3xl font-bold text-slate-900">
           Welcome back, {user?.name}
@@ -32,7 +35,7 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
         {stats.map((stat) => (
           <Card key={stat.label}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -48,7 +51,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>

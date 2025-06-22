@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUpIcon, UsersIcon, FolderIcon, HardDriveIcon, ActivityIcon } from 'lucide-react';
+import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 const Analytics = () => {
   // Mock data for charts
@@ -69,13 +70,15 @@ const Analytics = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
+      <Breadcrumbs />
+      
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
         <p className="text-slate-600 mt-2">System statistics and insights</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
         {stats.map((stat, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -95,7 +98,7 @@ const Analytics = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
         <Card>
           <CardHeader>
             <CardTitle>Storage Usage Over Time</CardTitle>
@@ -143,7 +146,7 @@ const Analytics = () => {
         </Card>
       </div>
 
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>User Activity</CardTitle>
           <CardDescription>Daily uploads and downloads activity</CardDescription>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +57,7 @@ const AIChat = () => {
     if (!inputMessage.trim() || !selectedFile) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: Date.now().toString(),  
       type: 'user',
       message: inputMessage,
       timestamp: new Date(),
@@ -88,7 +87,7 @@ const AIChat = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <Breadcrumbs />
       
       <div>
@@ -96,7 +95,7 @@ const AIChat = () => {
         <p className="text-slate-600 mt-2">Ask questions about your uploaded files</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 w-full">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Select Files</CardTitle>

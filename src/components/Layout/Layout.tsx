@@ -10,10 +10,12 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   return (
     <SidebarProvider>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar />
-        <main className="flex-1 overflow-auto p-6">
-          {children}
+        <main className="flex-1 overflow-auto p-6 w-full">
+          <div className="w-full h-full">
+            {children}
+          </div>
         </main>
       </div>
     </SidebarProvider>

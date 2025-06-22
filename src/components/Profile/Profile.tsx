@@ -48,9 +48,16 @@ const Profile = () => {
     }
   };
 
+  const formatDate = (date: any) => {
+    if (!date) return 'Unknown';
+    if (date instanceof Date) return date.toLocaleDateString();
+    if (typeof date === 'string') return new Date(date).toLocaleDateString();
+    return 'Unknown';
+  };
+
   if (!user) {
     return (
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6 w-full">
         <Breadcrumbs />
         <div className="text-center py-12">
           <p className="text-slate-500">Please log in to view your profile.</p>
@@ -60,7 +67,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <Breadcrumbs />
       
       <div>
@@ -68,7 +75,7 @@ const Profile = () => {
         <p className="text-slate-600 mt-2">Manage your account information and preferences</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
@@ -182,7 +189,7 @@ const Profile = () => {
                 <div>
                   <p className="text-sm font-medium">Member Since</p>
                   <p className="text-sm text-slate-600">
-                    {user.createdAt.toLocaleDateString()}
+                    {formatDate(user.createdAt)}
                   </p>
                 </div>
               </div>
