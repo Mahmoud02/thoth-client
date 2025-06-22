@@ -24,7 +24,8 @@ import {
   SettingsIcon,
   LogOutIcon,
   DatabaseIcon,
-  MessageSquareIcon
+  MessageSquareIcon,
+  FunctionSquareIcon
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -37,6 +38,7 @@ const AppSidebar = () => {
     const baseItems = [
       { path: '/dashboard', label: 'Dashboard', icon: DatabaseIcon },
       { path: '/buckets', label: 'Buckets', icon: FolderIcon },
+      { path: '/functions', label: 'Functions', icon: FunctionSquareIcon },
       { path: '/ai-chat', label: 'AI Chat', icon: MessageSquareIcon },
       { path: '/profile', label: 'Profile', icon: SettingsIcon },
     ];

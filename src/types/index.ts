@@ -17,6 +17,7 @@ export interface Bucket {
   createdAt: Date;
   fileCount: number;
   size: number;
+  functions?: BucketFunction[];
 }
 
 export interface FileItem {
@@ -44,4 +45,20 @@ export interface Statistics {
   totalFiles: number;
   totalStorage: number;
   recentActivity: number;
+}
+
+export interface ValidationFunction {
+  id: string;
+  name: string;
+  description: string;
+  type: 'size' | 'extension' | 'content' | 'name';
+  icon: string;
+  parameters?: { [key: string]: any };
+}
+
+export interface BucketFunction {
+  id: string;
+  functionId: string;
+  order: number;
+  parameters: { [key: string]: any };
 }

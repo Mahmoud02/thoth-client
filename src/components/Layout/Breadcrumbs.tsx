@@ -17,6 +17,7 @@ const Breadcrumbs = () => {
   const breadcrumbNames: { [key: string]: string } = {
     dashboard: 'Dashboard',
     buckets: 'Buckets',
+    functions: 'Functions',
     'ai-chat': 'AI Chat',
     profile: 'Profile',
     users: 'User Management',
