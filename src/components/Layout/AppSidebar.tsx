@@ -38,7 +38,7 @@ const AppSidebar = () => {
 
   const handleSignOut = async () => {
     try {
-      await logout();
+      logout();
       navigate('/');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -102,16 +102,16 @@ const AppSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-slate-200">
-        {!collapsed && (
+        {!collapsed && user && (
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
               <span className="text-sm font-semibold text-white">
-                {user?.name.split(' ').map(n => n[0]).join('')}
+                {user.name.split(' ').map(n => n[0]).join('')}
               </span>
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-900">{user?.name}</p>
-              <p className="text-xs text-slate-500 capitalize">{user?.role.replace('_', ' ')}</p>
+              <p className="text-sm font-medium text-slate-900">{user.name}</p>
+              <p className="text-xs text-slate-500 capitalize">{user.role.replace('_', ' ')}</p>
             </div>
           </div>
         )}
