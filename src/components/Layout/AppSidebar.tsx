@@ -39,7 +39,7 @@ const AppSidebar = () => {
   const handleSignOut = async () => {
     try {
       logout();
-      navigate('/');
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Error signing out:', error);
     }
