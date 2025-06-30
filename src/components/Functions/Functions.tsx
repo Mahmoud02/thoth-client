@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +15,44 @@ import {
   PlusIcon, 
   GripVerticalIcon,
   TrashIcon,
-  SettingsIcon
+  SettingsIcon,
+  FolderIcon
 } from 'lucide-react';
-import { FunctionChain, FunctionStep } from '@/types';
+import { FunctionChain, FunctionStep, Bucket } from '@/types';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 const Functions = () => {
+  // Mock buckets data
+  const [buckets] = useState<Bucket[]>([
+    {
+      id: 'bucket-1',
+      name: 'Documents',
+      description: 'Office documents and PDFs',
+      createdBy: 'user-1',
+      createdAt: new Date(),
+      fileCount: 45,
+      size: 1024000,
+    },
+    {
+      id: 'bucket-2',
+      name: 'Images',
+      description: 'Photos and graphics',
+      createdBy: 'user-1', 
+      createdAt: new Date(),
+      fileCount: 120,
+      size: 5120000,
+    },
+    {
+      id: 'bucket-3',
+      name: 'Media Files',
+      description: 'Videos and audio files',
+      createdBy: 'user-1',
+      createdAt: new Date(),
+      fileCount: 20,
+      size: 10240000,
+    },
+  ]);
+
   const [availableFunctions] = useState<FunctionStep[]>([
     {
       id: '1',
@@ -79,6 +110,7 @@ const Functions = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newChainName, setNewChainName] = useState('');
   const [newChainDescription, setNewChainDescription] = useState('');
+  const [selectedBucketId, setSelectedBucketId] = useState<string>('');
 
   const handleDragEnd = (result: any) => {
     if (!result.destination || !selectedChain) return;
@@ -155,7 +187,7 @@ const Functions = () => {
       id: Date.now().toString(),
       name: newChainName,
       description: newChainDescription,
-      bucketId: '',
+      bucketId: selectedBucketId,
       steps: [],
       isActive: false,
     };
@@ -163,10 +195,35 @@ const Functions = () => {
     setFunctionChains(prev => [...prev, newChain]);
     setNewChainName('');
     setNewChainDescription('');
+    setSelectedBucketId('');
     setIsDialogOpen(false);
   };
 
+  const updateChainBucket = (chainId: string, bucketId: string) => {
+    setFunctionChains(prev =>
+      prev.map(c =>
+        c.id === chainId
+          ? { ...c, bucketId }
+          : c
+      )
+    );
+  };
+
+  const toggleChainStatus = (chainId: string) => {
+    setFunctionChains(prev =>
+      prev.map(c =>
+        c.id === chainId
+          ? { ...c, isActive: !c.isActive }
+          : c
+      )
+    );
+  };
+
   const selectedChainData = functionChains.find(c => c.id === selectedChain);
+  const getBucketName = (bucketId: string) => {
+    const bucket = buckets.find(b => b.id === bucketId);
+    return bucket?.name || 'No bucket assigned';
+  };
 
   return (
     <div className="space-y-6 w-full">
@@ -245,12 +302,30 @@ const Functions = () => {
                         placeholder="Enter chain description"
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="bucketSelect">Assign to Bucket</Label>
+                      <Select value={selectedBucketId} onValueChange={setSelectedBucketId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a bucket" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {buckets.map((bucket) => (
+                            <SelectItem key={bucket.id} value={bucket.id}>
+                              <div className="flex items-center space-x-2">
+                                <FolderIcon className="w-4 h-4" />
+                                <span>{bucket.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={createNewChain} disabled={!newChainName}>
+                    <Button onClick={createNewChain} disabled={!newChainName || !selectedBucketId}>
                       Create Chain
                     </Button>
                   </DialogFooter>
@@ -273,6 +348,9 @@ const Functions = () => {
                         <Badge variant={chain.isActive ? 'default' : 'secondary'}>
                           {chain.isActive ? 'Active' : 'Inactive'}
                         </Badge>
+                        <span className="text-xs text-slate-500">
+                          → {getBucketName(chain.bucketId)}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -286,10 +364,39 @@ const Functions = () => {
                   <div>
                     <h3 className="text-lg font-semibold">{selectedChainData.name}</h3>
                     <p className="text-sm text-slate-600">{selectedChainData.description}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <FolderIcon className="w-4 h-4 text-slate-400" />
+                      <span className="text-sm text-slate-500">
+                        Assigned to: {getBucketName(selectedChainData.bucketId)}
+                      </span>
+                    </div>
                   </div>
-                  <Badge variant={selectedChainData.isActive ? 'default' : 'secondary'}>
-                    {selectedChainData.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <div className="flex items-center space-x-2">
+                    <Select 
+                      value={selectedChainData.bucketId} 
+                      onValueChange={(bucketId) => updateChainBucket(selectedChainData.id, bucketId)}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {buckets.map((bucket) => (
+                          <SelectItem key={bucket.id} value={bucket.id}>
+                            <div className="flex items-center space-x-2">
+                              <FolderIcon className="w-4 h-4" />
+                              <span>{bucket.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant={selectedChainData.isActive ? "destructive" : "default"}
+                      onClick={() => toggleChainStatus(selectedChainData.id)}
+                    >
+                      {selectedChainData.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="border rounded-lg p-4">

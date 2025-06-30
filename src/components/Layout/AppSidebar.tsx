@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,20 +25,32 @@ import {
   LogOutIcon,
   DatabaseIcon,
   MessageSquareIcon,
-  FunctionSquareIcon
+  FunctionSquareIcon,
+  ActivityIcon
 } from 'lucide-react';
 
 const AppSidebar = () => {
   const { user, logout } = useAuth();
   const { state } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const collapsed = state === 'collapsed';
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const getNavItems = () => {
     const baseItems = [
       { path: '/dashboard', label: 'Dashboard', icon: DatabaseIcon },
       { path: '/buckets', label: 'Buckets', icon: FolderIcon },
       { path: '/functions', label: 'Functions', icon: FunctionSquareIcon },
+      { path: '/observability', label: 'Observability', icon: ActivityIcon },
       { path: '/ai-chat', label: 'AI Chat', icon: MessageSquareIcon },
       { path: '/profile', label: 'Profile', icon: SettingsIcon },
     ];
@@ -107,7 +119,7 @@ const AppSidebar = () => {
         <SidebarSeparator className="mb-4" />
         
         <Button
-          onClick={logout}
+          onClick={handleSignOut}
           variant="ghost"
           className="w-full justify-start text-slate-600 hover:text-slate-900 hover:bg-slate-100"
         >

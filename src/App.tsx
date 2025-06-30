@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -11,6 +12,7 @@ import AIChat from './pages/AIChat';
 import Profile from './pages/Profile';
 import UserManagement from './pages/UserManagement';
 import Analytics from './pages/Analytics';
+import Observability from './pages/Observability';
 import Functions from './components/Functions/Functions';
 
 function App() {
@@ -23,6 +25,7 @@ function App() {
           <Route path="/buckets" element={<Layout><BucketList /></Layout>} />
           <Route path="/buckets/:bucketId" element={<Layout><BucketDetails /></Layout>} />
           <Route path="/functions" element={<Layout><Functions /></Layout>} />
+          <Route path="/observability" element={<Layout><Observability /></Layout>} />
           <Route path="/ai-chat" element={<Layout><AIChat /></Layout>} />
           <Route path="/profile" element={<Layout><Profile /></Layout>} />
           <Route path="/users" element={<Layout><UserManagement /></Layout>} />
