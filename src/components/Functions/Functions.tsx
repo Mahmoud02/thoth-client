@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ const Functions = () => {
       type: 'validation',
       icon: ScaleIcon,
       parameters: { maxSize: '10MB' },
+      order: 0,
     },
     {
       id: '2',
@@ -37,6 +39,7 @@ const Functions = () => {
       type: 'validation',
       icon: FileTypeIcon,
       parameters: { allowedExtensions: ['.jpg', '.png', '.pdf'] },
+      order: 0,
     },
     {
       id: '3',
@@ -45,6 +48,7 @@ const Functions = () => {
       type: 'security',
       icon: ShieldIcon,
       parameters: {},
+      order: 0,
     },
     {
       id: '4',
@@ -53,6 +57,7 @@ const Functions = () => {
       type: 'validation',
       icon: CheckCircleIcon,
       parameters: {},
+      order: 0,
     },
   ]);
 
@@ -109,8 +114,13 @@ const Functions = () => {
     const chain = functionChains.find(c => c.id === selectedChain);
     if (!chain) return;
 
-    const newStep = {
-      ...func,
+    const newStep: FunctionStep = {
+      id: func.id,
+      name: func.name,
+      description: func.description,
+      type: func.type,
+      icon: func.icon,
+      parameters: func.parameters,
       order: chain.steps.length,
     };
 

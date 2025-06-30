@@ -62,3 +62,22 @@ export interface BucketFunction {
   order: number;
   parameters: { [key: string]: any };
 }
+
+export interface FunctionStep {
+  id: string;
+  name: string;
+  description: string;
+  type: 'validation' | 'security' | 'processing';
+  icon: any;
+  parameters: { [key: string]: any };
+  order: number;
+}
+
+export interface FunctionChain {
+  id: string;
+  name: string;
+  description: string;
+  bucketId: string;
+  steps: FunctionStep[];
+  isActive: boolean;
+}
