@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,8 @@ import {
   FolderIcon
 } from 'lucide-react';
 import { FunctionChain, FunctionStep, Bucket, AvailableFunction } from '@/types';
-import { useGetAvailableFunctions, useListBuckets, useAddBucketFunctions } from '@/hooks/use-api';
+import { useGetAvailableFunctions, useListBuckets, useAddBucketFunctions, useGetBucket, queryKeys } from '@/hooks/use-api';
+import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 import ConfiguredFunction from './ConfiguredFunction';
@@ -87,6 +88,37 @@ const Functions = () => {
   const [selectedBucketId, setSelectedBucketId] = useState<string>('');
   const [lastSavedBucket, setLastSavedBucket] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Get detailed bucket data with functions when a bucket is selected
+  const { data: selectedBucketData, isLoading: isLoadingBucketDetails } = useGetBucket(
+    selectedBucketId ? parseInt(selectedBucketId) : 0,
+    !!selectedBucketId
+  );
+  const existingBucketFunctions = selectedBucketData?.functions || {};
+
+  // Load existing bucket functions when they're fetched
+  useEffect(() => {
+    if (selectedBucketId && !isLoadingBucketDetails) {
+      if (Object.keys(existingBucketFunctions).length > 0) {
+        // Convert existing functions object to our local format
+        const existingConfigs = Object.entries(existingBucketFunctions).map(([functionType, config]: [string, any]) => ({
+          type: functionType,
+          properties: config.properties || {}
+        }));
+
+        setBucketConfigurations(prev => ({
+          ...prev,
+          [selectedBucketId]: existingConfigs
+        }));
+      } else {
+        // Clear configurations if no existing functions found
+        setBucketConfigurations(prev => ({
+          ...prev,
+          [selectedBucketId]: []
+        }));
+      }
+    }
+  }, [selectedBucketId, existingBucketFunctions, isLoadingBucketDetails]);
 
   // Add function to bucket configuration
   const addFunctionToBucket = (functionId: string) => {
@@ -166,6 +198,7 @@ const Functions = () => {
 
   // Save configuration to backend
   const addBucketFunctionsMutation = useAddBucketFunctions();
+  const queryClient = useQueryClient();
   
   const saveConfiguration = async () => {
     if (!selectedBucketId) return;
@@ -193,6 +226,12 @@ const Functions = () => {
       });
       
       setLastSavedBucket(selectedBucketId);
+      
+      // Invalidate bucket details query to refresh functions
+      queryClient.invalidateQueries({ queryKey: queryKeys.bucket(parseInt(selectedBucketId)) });
+      // Also invalidate buckets list to keep it in sync
+      queryClient.invalidateQueries({ queryKey: queryKeys.buckets });
+      
       toast({
         title: "Configuration saved successfully!",
         description: `${configs.length} function(s) configured for ${selectedBucket?.name}`,
@@ -362,7 +401,12 @@ const Functions = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {currentConfigurations.length === 0 ? (
+              {isLoadingBucketDetails ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-sm text-slate-500 mt-2">Loading bucket functions...</p>
+                </div>
+              ) : currentConfigurations.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <SettingsIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                   <p>No functions configured for this bucket</p>

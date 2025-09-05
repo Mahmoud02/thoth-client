@@ -307,6 +307,11 @@ class APIClient {
   async getAvailableFunctions(): Promise<AvailableFunction[]> {
     return this.request<AvailableFunction[]>('/buckets/functions');
   }
+
+  // Get bucket functions configuration
+  async getBucketFunctions(bucketId: number): Promise<any[]> {
+    return this.request<any[]>(`/buckets/${bucketId}/functions`);
+  }
 }
 
 // Create and export API client instance

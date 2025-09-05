@@ -236,6 +236,16 @@ export const useGetAvailableFunctions = () => {
   });
 };
 
+// Bucket Functions hooks
+export const useGetBucketFunctions = (bucketId: number, enabled = true) => {
+  return useQuery({
+    queryKey: ['bucketFunctions', bucketId],
+    queryFn: () => apiClient.getBucketFunctions(bucketId),
+    enabled: enabled && !!bucketId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
 // Utility hook for error handling
 export const useAPIError = () => {
   const handleError = (error: unknown): string => {
