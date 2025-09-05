@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,16 +26,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { FolderIcon, PlusIcon, MoreVerticalIcon, GridIcon, ListIcon, TrashIcon, EditIcon, ArrowUpDownIcon, Loader2 } from 'lucide-react';
-import { Bucket, CreateBucketRequest } from '@/types';
+import { FolderIcon, PlusIcon, MoreVerticalIcon, GridIcon, ListIcon, TrashIcon, EditIcon, ArrowUpDownIcon, Loader2, LayersIcon } from 'lucide-react';
+import { Bucket, CreateBucketRequest, Namespace } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateBucket, useUpdateBucket, useDeleteBucket, useListBuckets, useAPIError } from '@/hooks/use-api';
+import { useCreateBucket, useUpdateBucket, useDeleteBucket, useListBuckets, useListNamespaces, useAPIError } from '@/hooks/use-api';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 const BucketList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { handleError } = useAPIError();
+  const [searchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -45,13 +46,29 @@ const BucketList = () => {
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedNamespaceId, setSelectedNamespaceId] = useState<number | null>(null);
   const itemsPerPage = 6;
 
   // API Hooks
   const createBucketMutation = useCreateBucket();
   const updateBucketMutation = useUpdateBucket();
   const deleteBucketMutation = useDeleteBucket();
-  const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
+  const { data: namespaces = [] } = useListNamespaces();
+  const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(selectedNamespaceId || 1, !!selectedNamespaceId);
+
+  // Handle URL parameters for namespace filtering
+  useEffect(() => {
+    const namespaceParam = searchParams.get('namespace');
+    if (namespaceParam) {
+      const namespaceId = parseInt(namespaceParam, 10);
+      if (!isNaN(namespaceId)) {
+        setSelectedNamespaceId(namespaceId);
+      }
+    } else if (namespaces.length > 0 && !selectedNamespaceId) {
+      // Default to first namespace if no specific namespace is selected
+      setSelectedNamespaceId(namespaces[0].id);
+    }
+  }, [searchParams, namespaces, selectedNamespaceId]);
 
   const formatFileSize = (bytes: number) => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -71,9 +88,18 @@ const BucketList = () => {
     }
 
     try {
+      if (!selectedNamespaceId) {
+        toast({
+          title: "Error",
+          description: "Please select a namespace first",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const createRequest: CreateBucketRequest = {
         name: newBucketName.trim(),
-        namespaceId: 1, // Default namespace for now
+        namespaceId: selectedNamespaceId,
       };
 
       await createBucketMutation.mutateAsync(createRequest);
@@ -87,10 +113,10 @@ const BucketList = () => {
         description: "Bucket created successfully",
       });
     } catch (error) {
-      const apiError = handleError(error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: apiError.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -115,10 +141,10 @@ const BucketList = () => {
         description: "Bucket updated successfully",
       });
     } catch (error) {
-      const apiError = handleError(error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: apiError.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -132,10 +158,10 @@ const BucketList = () => {
         description: "Bucket deleted successfully",
       });
     } catch (error) {
-      const apiError = handleError(error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: apiError.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -377,9 +403,33 @@ const BucketList = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">My Buckets</h1>
-          <p className="text-slate-600 mt-2">Organize and manage your file containers</p>
+          <p className="text-slate-600 mt-2">
+            {selectedNamespaceId ? 
+              `Buckets in ${namespaces.find(ns => ns.id === selectedNamespaceId)?.name || 'selected namespace'}` :
+              'Organize and manage your file containers'
+            }
+          </p>
         </div>
         <div className="flex items-center space-x-4">
+          <Select 
+            value={selectedNamespaceId?.toString() || ''} 
+            onValueChange={(value) => setSelectedNamespaceId(value ? parseInt(value, 10) : null)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select namespace" />
+            </SelectTrigger>
+            <SelectContent>
+              {namespaces.map((namespace) => (
+                <SelectItem key={namespace.id} value={namespace.id.toString()}>
+                  <div className="flex items-center space-x-2">
+                    <LayersIcon className="h-4 w-4" />
+                    <span>{namespace.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-32">
               <SelectValue />
