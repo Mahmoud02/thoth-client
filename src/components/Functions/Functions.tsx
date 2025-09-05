@@ -16,10 +16,11 @@ import {
   GripVerticalIcon,
   TrashIcon,
   SettingsIcon,
-  FolderIcon
+  FolderIcon,
+  LayersIcon
 } from 'lucide-react';
 import { FunctionChain, FunctionStep, Bucket, AvailableFunction } from '@/types';
-import { useGetAvailableFunctions, useListBuckets, useAddBucketFunctions, useGetBucket, queryKeys } from '@/hooks/use-api';
+import { useGetAvailableFunctions, useListBuckets, useAddBucketFunctions, useGetBucket, useListNamespaces, queryKeys } from '@/hooks/use-api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
@@ -67,7 +68,9 @@ const mapAvailableFunctionToFunctionStep = (func: AvailableFunction): FunctionSt
 
 const Functions = () => {
   // Get data from API
-  const { data: bucketsData = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
+  const { data: namespaces = [], isLoading: isLoadingNamespaces } = useListNamespaces();
+  const [selectedNamespaceId, setSelectedNamespaceId] = useState<number | null>(null);
+  const { data: bucketsData = [], isLoading: isLoadingBuckets } = useListBuckets(selectedNamespaceId || 1);
   const { data: availableFunctionsData = [], isLoading: isLoadingFunctions } = useGetAvailableFunctions();
 
   // Transform API data to UI format
@@ -119,6 +122,12 @@ const Functions = () => {
       }
     }
   }, [selectedBucketId, existingBucketFunctions, isLoadingBucketDetails]);
+
+  // Clear selected bucket when namespace changes
+  useEffect(() => {
+    setSelectedBucketId('');
+    setLastSavedBucket(null);
+  }, [selectedNamespaceId]);
 
   // Add function to bucket configuration
   const addFunctionToBucket = (functionId: string) => {
@@ -260,9 +269,60 @@ const Functions = () => {
     <div className="space-y-6 w-full">
       <Breadcrumbs />
       
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Function Management</h1>
-        <p className="text-slate-600 mt-2">Configure validation and processing functions for your buckets</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Function Management</h1>
+          <p className="text-slate-600 mt-2">
+            {selectedNamespaceId ? 
+              `Configure functions for buckets in ${namespaces.find(ns => ns.id === selectedNamespaceId)?.name || 'selected namespace'}` :
+              'Configure validation and processing functions for your buckets'
+            }
+          </p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Select 
+            value={selectedNamespaceId?.toString() || 'all'} 
+            onValueChange={(value) => setSelectedNamespaceId(value === 'all' ? null : parseInt(value))}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select namespace" />
+            </SelectTrigger>
+            <SelectContent>
+              {isLoadingNamespaces ? (
+                <SelectItem value="loading" disabled>
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span>Loading...</span>
+                  </div>
+                </SelectItem>
+              ) : namespaces.length === 0 ? (
+                <SelectItem value="no-namespaces" disabled>
+                  <div className="flex items-center space-x-2">
+                    <LayersIcon className="h-4 w-4" />
+                    <span>No namespaces</span>
+                  </div>
+                </SelectItem>
+              ) : (
+                <>
+                  <SelectItem value="all">
+                    <div className="flex items-center space-x-2">
+                      <LayersIcon className="h-4 w-4" />
+                      <span>All Namespaces</span>
+                    </div>
+                  </SelectItem>
+                  {namespaces.map((namespace) => (
+                    <SelectItem key={namespace.id} value={namespace.id.toString()}>
+                      <div className="flex items-center space-x-2">
+                        <LayersIcon className="h-4 w-4" />
+                        <span>{namespace.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Bucket Selection */}
@@ -288,18 +348,27 @@ const Functions = () => {
                 <SelectItem value="no-buckets" disabled>
                   <div className="flex items-center space-x-2">
                     <FolderIcon className="w-4 h-4" />
-                    <span>No buckets available</span>
+                    <span>
+                      No buckets available
+                      {selectedNamespaceId && ` in ${namespaces.find(n => n.id === selectedNamespaceId)?.name || 'this namespace'}`}
+                    </span>
                   </div>
                 </SelectItem>
               ) : (
-                buckets.map((bucket) => (
-                  <SelectItem key={bucket.id} value={bucket.id}>
-                    <div className="flex items-center space-x-2">
-                      <FolderIcon className="w-4 h-4" />
-                      <span>{bucket.name}</span>
-                    </div>
-                  </SelectItem>
-                ))
+                <>
+                  <div className="px-2 py-1.5 text-xs text-slate-500 border-b">
+                    {buckets.length} bucket{buckets.length !== 1 ? 's' : ''} available
+                    {selectedNamespaceId && ` in ${namespaces.find(n => n.id === selectedNamespaceId)?.name || 'this namespace'}`}
+                  </div>
+                  {buckets.map((bucket) => (
+                    <SelectItem key={bucket.id} value={bucket.id}>
+                      <div className="flex items-center space-x-2">
+                        <FolderIcon className="w-4 h-4" />
+                        <span>{bucket.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </>
               )}
             </SelectContent>
           </Select>
