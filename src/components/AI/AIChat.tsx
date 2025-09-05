@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,18 +27,15 @@ const AIChat = () => {
   const queryRAG = useQueryRAG();
   const ingestDocumentMutation = useIngestDocument();
   
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'ai',
-      message: 'Hello! I can help you analyze your uploaded files. Select a bucket and choose whether to ask about a specific file or all ingested files.',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedBucket, setSelectedBucket] = useState('');
   const [selectedFile, setSelectedFile] = useState('');
   const [queryScope, setQueryScope] = useState<'specific' | 'all'>('specific');
+  const [contextOverview, setContextOverview] = useState<string | null>(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // Get buckets from API
   const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
@@ -51,6 +48,14 @@ const AIChat = () => {
 
   const currentFiles = objects || [];
   const ingestedFiles = currentFiles.filter(file => file.isIngested);
+
+  // Cleanup streaming on unmount
+  useEffect(() => {
+    return () => {
+      setIsStreaming(false);
+      setStreamingMessage('');
+    };
+  }, []);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !selectedBucket) return;
@@ -94,12 +99,19 @@ const AIChat = () => {
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        message: responseText,
+        message: '', // Start with empty message for streaming
         timestamp: new Date(),
         fileContext: queryScope === 'specific' ? selectedFile : undefined,
         queryScope: queryScope,
       };
+      
+      // Add the message first, then start streaming
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Start streaming the response
+      setTimeout(() => {
+        streamText(responseText, aiMessage.id);
+      }, 100);
     } catch (error) {
       const errorMessage = handleError(error);
       const errorChatMessage: ChatMessage = {
@@ -145,9 +157,77 @@ const AIChat = () => {
     }
   };
 
+  const fetchContextOverview = async (bucketName: string) => {
+    setIsLoadingContext(true);
+    try {
+      const response = await queryRAG.mutateAsync({
+        q: "What questions can I ask about the files in this bucket? Please provide an overview of the context and suggest some example questions I can ask.",
+        bucket: bucketName
+      });
+      
+      setContextOverview(response.response);
+      
+      // Add the context overview as a pinned message at the top
+      const contextMessage: ChatMessage = {
+        id: 'context-overview',
+        type: 'ai',
+        message: '', // Start with empty message for streaming
+        timestamp: new Date(),
+        queryScope: 'all',
+      };
+      
+      setMessages(prev => [contextMessage, ...prev]);
+      
+      // Start streaming the context overview
+      setTimeout(() => {
+        streamText(response.response, 'context-overview');
+      }, 200);
+      
+    } catch (error) {
+      console.error('Failed to fetch context overview:', error);
+      const errorMessage = handleError(error);
+      setContextOverview(`Unable to load context overview: ${errorMessage}`);
+    } finally {
+      setIsLoadingContext(false);
+    }
+  };
+
   const handleBucketChange = (bucketName: string) => {
     setSelectedBucket(bucketName);
     setSelectedFile(''); // Reset file selection when bucket changes
+    setContextOverview(null); // Clear previous context
+    setMessages([]); // Clear previous messages
+    
+    // Fetch context overview for the new bucket
+    if (bucketName) {
+      fetchContextOverview(bucketName);
+    }
+  };
+
+  const streamText = (text: string, messageId: string) => {
+    setIsStreaming(true);
+    setStreamingMessage('');
+    
+    const words = text.split(' ');
+    let currentIndex = 0;
+    
+    const streamInterval = setInterval(() => {
+      if (currentIndex < words.length) {
+        setStreamingMessage(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
+        currentIndex++;
+      } else {
+        clearInterval(streamInterval);
+        setIsStreaming(false);
+        
+        // Update the actual message with the complete text
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, message: text }
+            : msg
+        ));
+        setStreamingMessage('');
+      }
+    }, 50); // 50ms delay between words (adjustable speed)
   };
 
   const handleQueryScopeChange = (scope: 'specific' | 'all') => {
@@ -347,8 +427,8 @@ const AIChat = () => {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
-          <CardHeader>
+        <Card className="lg:col-span-3 flex flex-col h-[calc(100vh-200px)]">
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center space-x-2">
               <BotIcon className="w-5 h-5 text-blue-600" />
               <span>AI Assistant</span>
@@ -364,8 +444,15 @@ const AIChat = () => {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-96 overflow-y-auto mb-4 space-y-4 border rounded-lg p-4 bg-slate-50">
+          <CardContent className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto mb-4 space-y-4 border rounded-lg p-4 bg-slate-50">
+              {isLoadingContext && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-sm text-slate-600">Loading context overview...</span>
+                </div>
+              )}
+              
               {messages && messages.length > 0 ? messages.map((message) => (
                 <div
                   key={message.id}
@@ -379,13 +466,26 @@ const AIChat = () => {
                     </div>
                   )}
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    className={`w-full max-w-[80vw] sm:max-w-[60vw] md:max-w-[50vw] lg:max-w-[40vw] xl:max-w-[35vw] px-4 py-2 rounded-lg ${
                       message.type === 'user'
                         ? 'bg-blue-600 text-white'
+                        : message.id === 'context-overview'
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-md'
                         : 'bg-white border border-slate-200'
                     }`}
                   >
-                    <p className="text-sm">{message.message}</p>
+                    {message.id === 'context-overview' && (
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Context Overview</span>
+                      </div>
+                    )}
+                    <p className={`text-sm ${message.id === 'context-overview' ? 'text-slate-800' : ''}`}>
+                      {isStreaming && message.message === '' ? streamingMessage : message.message}
+                      {isStreaming && message.message === '' && (
+                        <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>
+                      )}
+                    </p>
                     <p className={`text-xs mt-1 ${
                       message.type === 'user' ? 'text-blue-100' : 'text-slate-500'
                     }`}>
@@ -398,7 +498,7 @@ const AIChat = () => {
                     </div>
                   )}
                 </div>
-              )) : (
+              )) : !isLoadingContext && (
                 <div className="text-center py-8 text-slate-500">
                   <BotIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                   <p className="text-sm">No messages yet</p>
@@ -407,7 +507,7 @@ const AIChat = () => {
               )}
             </div>
 
-            <div className="flex space-x-2">
+            <div className="flex-shrink-0 flex space-x-2">
               <Input
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
