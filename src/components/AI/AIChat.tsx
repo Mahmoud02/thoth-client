@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { SendIcon, BotIcon, UserIcon, FileIcon, FolderIcon, Loader2, BrainIcon, CheckCircleIcon, DatabaseIcon } from 'lucide-react';
-import { useListObjects, useQueryBucketAI, useListBuckets, useIngestDocument, useAPIError } from '@/hooks/use-api';
+import { useListObjects, useQueryRAG, useListBuckets, useIngestDocument, useAPIError } from '@/hooks/use-api';
 import { useToast } from '@/hooks/use-toast';
 import { Bucket, ObjectMetadata } from '@/types';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
@@ -24,7 +24,7 @@ interface ChatMessage {
 const AIChat = () => {
   const { toast } = useToast();
   const { handleError } = useAPIError();
-  const queryBucketAI = useQueryBucketAI();
+  const queryRAG = useQueryRAG();
   const ingestDocumentMutation = useIngestDocument();
   
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -55,7 +55,7 @@ const AIChat = () => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !selectedBucket) return;
 
-    // For specific file queries, check if file is selected and ingested
+    // For specific file queries, check if file is selected
     if (queryScope === 'specific') {
       if (!selectedFile) {
         toast({
@@ -65,26 +65,6 @@ const AIChat = () => {
         });
         return;
       }
-
-      const selectedFileData = currentFiles.find(file => file.objectName === selectedFile);
-      if (selectedFileData && !selectedFileData.isIngested) {
-        toast({
-          title: "File Not Ready",
-          description: "This file needs to be ingested before you can ask questions about it. Click the brain icon to make it AI ready.",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-
-    // For all files queries, check if any files are ingested
-    if (queryScope === 'all' && ingestedFiles.length === 0) {
-      toast({
-        title: "No Ingested Files",
-        description: "No files have been ingested yet. Please ingest some files first before asking questions about all files.",
-        variant: "destructive"
-      });
-      return;
     }
 
     const userMessage: ChatMessage = {
@@ -99,19 +79,22 @@ const AIChat = () => {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      const context = queryScope === 'specific' 
-        ? `File: ${selectedFile} in bucket: ${selectedBucket}`
-        : `All ingested files in bucket: ${selectedBucket} (${ingestedFiles.length} files)`;
-
-      const response = await queryBucketAI.mutateAsync({
-        query: inputMessage,
-        context: context
+      console.log('Sending RAG query:', { q: inputMessage, bucket: selectedBucket });
+      
+      const response = await queryRAG.mutateAsync({
+        q: inputMessage,
+        bucket: selectedBucket
       });
+
+      console.log('RAG response received:', response, 'Type:', typeof response);
+
+      // Handle JSON response structure: { "response": "string" }
+      const responseText = response.response || 'No response received';
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        message: response.response,
+        message: responseText,
         timestamp: new Date(),
         fileContext: queryScope === 'specific' ? selectedFile : undefined,
         queryScope: queryScope,
@@ -226,9 +209,9 @@ const AIChat = () => {
                     <RadioGroupItem value="all" id="all" />
                     <Label htmlFor="all" className="flex items-center space-x-2">
                       <DatabaseIcon className="w-4 h-4" />
-                      <span>All Ingested Files</span>
+                      <span>All Files</span>
                       <Badge variant="outline" className="ml-2">
-                        {ingestedFiles.length} ready
+                        {currentFiles.length} total
                       </Badge>
                     </Label>
                   </div>
@@ -303,7 +286,7 @@ const AIChat = () => {
 
             {selectedBucket && queryScope === 'all' && (
               <div>
-                <label className="text-sm font-medium mb-2 block">Ingested Files Summary</label>
+                <label className="text-sm font-medium mb-2 block">All Files in Bucket</label>
                 {isLoadingObjects ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -311,22 +294,33 @@ const AIChat = () => {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {ingestedFiles.length > 0 ? (
-                      ingestedFiles.map((file) => (
+                    {currentFiles.length > 0 ? (
+                      currentFiles.map((file) => (
                         <div
                           key={file.objectName}
-                          className="p-3 rounded-lg border border-green-200 bg-green-50"
+                          className={`p-3 rounded-lg border ${
+                            file.isIngested 
+                              ? 'border-green-200 bg-green-50' 
+                              : 'border-slate-200 bg-slate-50'
+                          }`}
                         >
                           <div className="flex items-center space-x-2">
-                            <FileIcon className="w-4 h-4 text-green-600" />
+                            <FileIcon className="w-4 h-4 text-slate-600" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-slate-900 truncate">{file.objectName}</p>
                               <div className="flex items-center space-x-2">
                                 <p className="text-xs text-slate-500">{file.contentType}</p>
-                                <div className="flex items-center space-x-1 text-green-600">
-                                  <CheckCircleIcon className="w-3 h-3" />
-                                  <span className="text-xs">AI Ready</span>
-                                </div>
+                                {file.isIngested ? (
+                                  <div className="flex items-center space-x-1 text-green-600">
+                                    <CheckCircleIcon className="w-3 h-3" />
+                                    <span className="text-xs">AI Ready</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center space-x-1 text-gray-500">
+                                    <BrainIcon className="w-3 h-3" />
+                                    <span className="text-xs">Not ingested</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -335,8 +329,8 @@ const AIChat = () => {
                     ) : (
                       <div className="text-center py-8 text-slate-500">
                         <DatabaseIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                        <p className="text-sm">No files ingested yet</p>
-                        <p className="text-xs text-slate-400 mt-1">Ingest files to enable AI queries</p>
+                        <p className="text-sm">No files in this bucket</p>
+                        <p className="text-xs text-slate-400 mt-1">Upload files to get started</p>
                       </div>
                     )}
                   </div>
@@ -363,7 +357,7 @@ const AIChat = () => {
                   {queryScope === 'specific' && selectedFile 
                     ? `Analyzing: ${selectedFile}`
                     : queryScope === 'all' 
-                    ? `Analyzing: All Files (${ingestedFiles.length} ready)`
+                    ? `Analyzing: All Files (${currentFiles.length} total)`
                     : 'Select configuration'
                   }
                 </Badge>
@@ -372,7 +366,7 @@ const AIChat = () => {
           </CardHeader>
           <CardContent>
             <div className="h-96 overflow-y-auto mb-4 space-y-4 border rounded-lg p-4 bg-slate-50">
-              {messages.map((message) => (
+              {messages && messages.length > 0 ? messages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex items-start space-x-3 ${
@@ -404,7 +398,13 @@ const AIChat = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8 text-slate-500">
+                  <BotIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs text-slate-400 mt-1">Start a conversation by asking a question</p>
+                </div>
+              )}
             </div>
 
             <div className="flex space-x-2">
@@ -416,13 +416,11 @@ const AIChat = () => {
                     ? "Select a bucket first..."
                     : queryScope === 'specific' && !selectedFile
                     ? "Select a specific file first..."
-                    : queryScope === 'all' && ingestedFiles.length === 0
-                    ? "No ingested files available. Ingest some files first..."
                     : queryScope === 'specific'
                     ? "Ask a question about the selected file..."
-                    : "Ask a question about all ingested files..."
+                    : "Ask a question about all files in the bucket..."
                 }
-                disabled={!selectedBucket || (queryScope === 'specific' && !selectedFile) || (queryScope === 'all' && ingestedFiles.length === 0)}
+                disabled={!selectedBucket || (queryScope === 'specific' && !selectedFile)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               />
               <Button 
@@ -430,12 +428,11 @@ const AIChat = () => {
                 disabled={
                   !selectedBucket || 
                   !inputMessage.trim() || 
-                  queryBucketAI.isPending ||
-                  (queryScope === 'specific' && !selectedFile) ||
-                  (queryScope === 'all' && ingestedFiles.length === 0)
+                  queryRAG.isPending ||
+                  (queryScope === 'specific' && !selectedFile)
                 }
               >
-                {queryBucketAI.isPending ? (
+                {queryRAG.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <SendIcon className="w-4 h-4" />

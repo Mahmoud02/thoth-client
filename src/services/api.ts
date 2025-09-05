@@ -296,8 +296,8 @@ class APIClient {
     });
   }
 
-  async queryRAG(q: string, bucket: string): Promise<string> {
-    return this.request<string>(`/rag/query?q=${encodeURIComponent(q)}&bucket=${encodeURIComponent(bucket)}`, {
+  async queryRAG(q: string, bucket: string): Promise<{ response: string }> {
+    return this.request<{ response: string }>(`/rag/query?q=${encodeURIComponent(q)}&bucket=${encodeURIComponent(bucket)}`, {
       method: 'POST',
     });
   }
