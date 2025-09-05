@@ -211,6 +211,21 @@ export const useQueryBucketAI = () => {
   });
 };
 
+// RAG Hooks
+export const useIngestDocument = () => {
+  return useMutation({
+    mutationFn: ({ bucket, filename }: { bucket: string; filename: string }) => 
+      apiClient.ingestDocument(bucket, filename),
+  });
+};
+
+export const useQueryRAG = () => {
+  return useMutation({
+    mutationFn: ({ q, bucket }: { q: string; bucket: string }) => 
+      apiClient.queryRAG(q, bucket),
+  });
+};
+
 // Utility hook for error handling
 export const useAPIError = () => {
   const handleError = (error: unknown): string => {

@@ -3,6 +3,7 @@ import {
   Bucket, 
   ObjectMetadata, 
   CreateNamespaceRequest,
+  UpdateNamespaceRequest,
   CreateBucketRequest,
   UpdateBucketRequest,
   UploadObjectRequest,
@@ -285,6 +286,19 @@ class APIClient {
     return this.request<AIQueryResponse>('/buckets/ai/query', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  // RAG API
+  async ingestDocument(bucket: string, filename: string): Promise<string> {
+    return this.request<string>(`/rag/ingest?bucket=${encodeURIComponent(bucket)}&filename=${encodeURIComponent(filename)}`, {
+      method: 'POST',
+    });
+  }
+
+  async queryRAG(q: string, bucket: string): Promise<string> {
+    return this.request<string>(`/rag/query?q=${encodeURIComponent(q)}&bucket=${encodeURIComponent(bucket)}`, {
+      method: 'POST',
     });
   }
 }

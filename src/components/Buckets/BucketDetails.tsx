@@ -21,10 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeftIcon, UploadIcon, DownloadIcon, MoreVerticalIcon, FileIcon, TrashIcon, ArrowUpDownIcon, Loader2 } from 'lucide-react';
+import { ArrowLeftIcon, UploadIcon, DownloadIcon, MoreVerticalIcon, FileIcon, TrashIcon, ArrowUpDownIcon, Loader2, BrainIcon, CheckCircleIcon } from 'lucide-react';
 import { ObjectMetadata } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useGetBucket, useListObjects, useDeleteObject, useAPIError } from '@/hooks/use-api';
+import { useGetBucket, useListObjects, useDeleteObject, useIngestDocument, useAPIError } from '@/hooks/use-api';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 import FileUploadModal from '@/components/Upload/FileUploadModal';
 
@@ -42,6 +42,7 @@ const BucketDetails = () => {
   const { data: bucket, isLoading: isLoadingBucket } = useGetBucket(Number(bucketId), !!bucketId);
   const { data: objects = [], isLoading: isLoadingObjects } = useListObjects(bucket?.name || '', !!bucket?.name);
   const deleteObjectMutation = useDeleteObject();
+  const ingestDocumentMutation = useIngestDocument();
   const { handleError } = useAPIError();
 
   const formatFileSize = (bytes: number) => {
@@ -67,6 +68,29 @@ const BucketDetails = () => {
       toast({
         title: "Success",
         description: "File deleted successfully",
+      });
+    } catch (error) {
+      const errorMessage = handleError(error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleIngestFile = async (objectName: string) => {
+    if (!bucket?.name) return;
+
+    try {
+      await ingestDocumentMutation.mutateAsync({
+        bucket: bucket.name,
+        filename: objectName
+      });
+      
+      toast({
+        title: "Success",
+        description: "File ingested successfully and is now ready for AI queries",
       });
     } catch (error) {
       const errorMessage = handleError(error);
@@ -202,6 +226,28 @@ const BucketDetails = () => {
               <UploadIcon className="w-4 h-4 mr-2" />
               Upload Files
             </Button>
+            {objects && objects.some(file => !file.isIngested) && (
+              <Button 
+                className="w-full" 
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const uningestedFiles = objects.filter(file => !file.isIngested);
+                  // Ingest all uningested files
+                  uningestedFiles.forEach(file => {
+                    handleIngestFile(file.objectName);
+                  });
+                }}
+                disabled={ingestDocumentMutation.isPending}
+              >
+                {ingestDocumentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <BrainIcon className="w-4 h-4 mr-2" />
+                )}
+                Make All AI Ready
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -252,20 +298,21 @@ const BucketDetails = () => {
                     Uploaded <ArrowUpDownIcon className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
+                <TableHead>AI Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoadingObjects ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
                     <span className="text-slate-600">Loading files...</span>
                   </TableCell>
                 </TableRow>
               ) : (objects?.length || 0) === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12">
+                  <TableCell colSpan={6} className="text-center py-12">
                     <FileIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No files found</h3>
                     <p className="text-gray-600 mb-4">This bucket is empty. Upload some files to get started.</p>
@@ -297,6 +344,19 @@ const BucketDetails = () => {
                       {file.createdAt ? new Date(file.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
                     <TableCell>
+                      {file.isIngested ? (
+                        <div className="flex items-center space-x-1 text-green-600">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          <span className="text-sm">Ready</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-1 text-gray-500">
+                          <BrainIcon className="w-4 h-4" />
+                          <span className="text-sm">Not ingested</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -308,6 +368,19 @@ const BucketDetails = () => {
                             <DownloadIcon className="w-4 h-4 mr-2" />
                             Download
                           </DropdownMenuItem>
+                          {!file.isIngested && (
+                            <DropdownMenuItem 
+                              onClick={() => handleIngestFile(file.objectName)}
+                              disabled={ingestDocumentMutation.isPending}
+                            >
+                              {ingestDocumentMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <BrainIcon className="w-4 h-4 mr-2" />
+                              )}
+                              Make AI Ready
+                            </DropdownMenuItem>
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>

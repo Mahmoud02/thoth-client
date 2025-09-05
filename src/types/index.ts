@@ -33,6 +33,7 @@ export interface ObjectMetadata {
   size: number;
   createdAt?: string;
   updatedAt?: string;
+  isIngested?: boolean; // Whether the file has been ingested for AI/RAG
 }
 
 export interface BucketFunctionConfig {
