@@ -112,6 +112,23 @@ class APIClient {
     return this.request<Namespace>(`/namespaces/${namespaceId}`);
   }
 
+  async listNamespaces(): Promise<Namespace[]> {
+    return this.request<Namespace[]>('/namespaces');
+  }
+
+  async updateNamespace(namespaceId: number, data: UpdateNamespaceRequest): Promise<void> {
+    return this.request<void>(`/namespaces/${namespaceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteNamespace(namespaceId: number): Promise<void> {
+    return this.request<void>(`/namespaces/${namespaceId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Bucket API
   async createBucket(data: CreateBucketRequest): Promise<Bucket> {
     return this.request<Bucket>('/buckets', {

@@ -69,10 +69,10 @@ const BucketDetails = () => {
         description: "File deleted successfully",
       });
     } catch (error) {
-      const apiError = handleError(error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: apiError.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }

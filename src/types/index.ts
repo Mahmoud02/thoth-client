@@ -4,8 +4,17 @@
 export interface Namespace {
   id: number;
   name: string;
+  description?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateNamespaceRequest {
+  namespaceName: string;
+}
+
+export interface UpdateNamespaceRequest {
+  newNamespaceName: string;
 }
 
 export interface Bucket {

@@ -5,6 +5,7 @@ import {
   Bucket, 
   ObjectMetadata, 
   CreateNamespaceRequest,
+  UpdateNamespaceRequest,
   CreateBucketRequest,
   UpdateBucketRequest,
   UploadObjectRequest,
@@ -39,6 +40,36 @@ export const useGetNamespace = (namespaceId: number, enabled = true) => {
     queryKey: queryKeys.namespace(namespaceId),
     queryFn: () => apiClient.getNamespace(namespaceId),
     enabled: enabled && !!namespaceId,
+  });
+};
+
+export const useListNamespaces = () => {
+  return useQuery({
+    queryKey: queryKeys.namespaces,
+    queryFn: () => apiClient.listNamespaces(),
+  });
+};
+
+export const useUpdateNamespace = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ namespaceId, data }: { namespaceId: number; data: UpdateNamespaceRequest }) => 
+      apiClient.updateNamespace(namespaceId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.namespaces });
+    },
+  });
+};
+
+export const useDeleteNamespace = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (namespaceId: number) => apiClient.deleteNamespace(namespaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.namespaces });
+    },
   });
 };
 

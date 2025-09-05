@@ -27,7 +27,8 @@ import {
   MessageSquareIcon,
   FunctionSquareIcon,
   ActivityIcon,
-  UploadIcon
+  UploadIcon,
+  LayersIcon
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -49,6 +50,7 @@ const AppSidebar = () => {
   const getNavItems = () => {
     const baseItems = [
       { path: '/dashboard', label: 'Dashboard', icon: DatabaseIcon },
+      { path: '/namespaces', label: 'Namespaces', icon: LayersIcon },
       { path: '/buckets', label: 'Buckets', icon: FolderIcon },
       { path: '/upload', label: 'Upload Files', icon: UploadIcon },
       { path: '/functions', label: 'Functions', icon: FunctionSquareIcon },
