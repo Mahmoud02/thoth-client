@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SendIcon, BotIcon, UserIcon, FileIcon, FolderIcon } from 'lucide-react';
+import { SendIcon, BotIcon, UserIcon, FileIcon, FolderIcon, Loader2 } from 'lucide-react';
+import { useListObjects, useQueryBucketAI, useListBuckets, useAPIError } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
+import { Bucket, ObjectMetadata } from '@/types';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 interface ChatMessage {
@@ -16,6 +19,10 @@ interface ChatMessage {
 }
 
 const AIChat = () => {
+  const { toast } = useToast();
+  const { handleError } = useAPIError();
+  const queryBucketAI = useQueryBucketAI();
+  
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -28,32 +35,18 @@ const AIChat = () => {
   const [selectedBucket, setSelectedBucket] = useState('');
   const [selectedFile, setSelectedFile] = useState('');
 
-  const mockBuckets = [
-    { id: '1', name: 'project-documents', fileCount: 24 },
-    { id: '2', name: 'media-assets', fileCount: 156 },
-    { id: '3', name: 'backup-files', fileCount: 8 },
-  ];
+  // Get buckets from API
+  const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
 
-  const mockFiles: { [key: string]: Array<{ id: string; name: string; type: string }> } = {
-    '1': [
-      { id: '1', name: 'project-proposal.pdf', type: 'PDF Document' },
-      { id: '2', name: 'requirements.docx', type: 'Word Document' },
-      { id: '3', name: 'budget.xlsx', type: 'Excel Spreadsheet' },
-    ],
-    '2': [
-      { id: '4', name: 'logo.png', type: 'Image' },
-      { id: '5', name: 'video-demo.mp4', type: 'Video' },
-      { id: '6', name: 'banner.jpg', type: 'Image' },
-    ],
-    '3': [
-      { id: '7', name: 'database-backup.sql', type: 'SQL File' },
-      { id: '8', name: 'config-backup.json', type: 'JSON File' },
-    ],
-  };
+  // Get files from API when bucket is selected
+  const { data: objects, isLoading: isLoadingObjects } = useListObjects(
+    selectedBucket, 
+    !!selectedBucket
+  );
 
-  const currentFiles = selectedBucket ? mockFiles[selectedBucket] || [] : [];
+  const currentFiles = objects || [];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputMessage.trim() || !selectedFile) return;
 
     const userMessage: ChatMessage = {
@@ -66,23 +59,43 @@ const AIChat = () => {
 
     setMessages(prev => [...prev, userMessage]);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const response = await queryBucketAI.mutateAsync({
+        query: inputMessage,
+        context: `File: ${selectedFile} in bucket: ${selectedBucket}`
+      });
+
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        message: `Based on your file "${selectedFile}", I can see that ${inputMessage.toLowerCase().includes('summary') ? 'this document contains important information about project milestones and budget allocations. The key points include quarterly targets and resource planning details.' : 'the content relates to your query. I\'ve analyzed the document structure and can provide specific insights about the data patterns and key information contained within.'}`,
+        message: response.response,
         timestamp: new Date(),
         fileContext: selectedFile,
       };
       setMessages(prev => [...prev, aiMessage]);
-    }, 1000);
+    } catch (error) {
+      const apiError = handleError(error);
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        message: `Sorry, I encountered an error: ${apiError.message}`,
+        timestamp: new Date(),
+        fileContext: selectedFile,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      toast({
+        title: "Error",
+        description: apiError.message,
+        variant: "destructive"
+      });
+    }
 
     setInputMessage('');
   };
 
-  const handleBucketChange = (bucketId: string) => {
-    setSelectedBucket(bucketId);
+  const handleBucketChange = (bucketName: string) => {
+    setSelectedBucket(bucketName);
     setSelectedFile(''); // Reset file selection when bucket changes
   };
 
@@ -108,13 +121,13 @@ const AIChat = () => {
                   <SelectValue placeholder="Select a bucket" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockBuckets.map((bucket) => (
-                    <SelectItem key={bucket.id} value={bucket.id}>
+                  {buckets.map((bucket) => (
+                    <SelectItem key={bucket.id} value={bucket.name}>
                       <div className="flex items-center space-x-2">
                         <FolderIcon className="w-4 h-4 text-blue-600" />
                         <span>{bucket.name}</span>
                         <Badge variant="secondary" className="ml-2">
-                          {bucket.fileCount} files
+                          {currentFiles.length} files
                         </Badge>
                       </div>
                     </SelectItem>
@@ -126,27 +139,34 @@ const AIChat = () => {
             {selectedBucket && (
               <div>
                 <label className="text-sm font-medium mb-2 block">Choose File</label>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {currentFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedFile === file.name
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                      onClick={() => setSelectedFile(file.name)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <FileIcon className="w-4 h-4 text-slate-600" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
-                          <p className="text-xs text-slate-500">{file.type}</p>
+                {isLoadingObjects ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    <span className="ml-2 text-sm text-slate-600">Loading files...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {currentFiles.map((file) => (
+                      <div
+                        key={file.objectName}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedFile === file.objectName
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                        onClick={() => setSelectedFile(file.objectName)}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <FileIcon className="w-4 h-4 text-slate-600" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{file.objectName}</p>
+                            <p className="text-xs text-slate-500">{file.contentType}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -216,8 +236,15 @@ const AIChat = () => {
                 disabled={!selectedFile}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               />
-              <Button onClick={handleSendMessage} disabled={!selectedFile || !inputMessage.trim()}>
-                <SendIcon className="w-4 h-4" />
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={!selectedFile || !inputMessage.trim() || queryBucketAI.isPending}
+              >
+                {queryBucketAI.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <SendIcon className="w-4 h-4" />
+                )}
               </Button>
             </div>
           </CardContent>

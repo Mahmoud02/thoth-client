@@ -1,4 +1,95 @@
 
+// ===== API Response Types =====
+
+export interface Namespace {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Bucket {
+  id: number;
+  name: string;
+  namespaceId: number;
+  createdAt: string;
+  updatedAt: string;
+  functions?: Record<string, any>;
+}
+
+export interface ObjectMetadata {
+  bucketName: string;
+  objectName: string;
+  contentType: string;
+  size: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BucketFunctionConfig {
+  type: 'SIZE_LIMIT' | 'EXTENSION_VALIDATOR' | 'CONTENT_VALIDATOR' | 'NAME_VALIDATOR';
+  maxSizeBytes?: number;
+  allowedExtensions?: string[];
+  allowedContentTypes?: string[];
+  namePattern?: string;
+}
+
+export interface CreateBucketFunctionRequest {
+  bucketId: number;
+  configs: BucketFunctionConfig[];
+}
+
+export interface CreateBucketFunctionResponse {
+  bucketName: number;
+  functionsAdded: number;
+  configValues: BucketFunctionConfig[];
+}
+
+export interface RAGQueryRequest {
+  query: string;
+}
+
+export interface RAGQueryResponse {
+  answer: string;
+  sources: string[];
+  confidence: number;
+}
+
+export interface AIQueryRequest {
+  query: string;
+  context?: string;
+}
+
+export interface AIQueryResponse {
+  response: string;
+  metadata?: Record<string, any>;
+}
+
+// ===== Request Types =====
+
+export interface CreateNamespaceRequest {
+  name: string;
+}
+
+export interface CreateBucketRequest {
+  name: string;
+  namespaceId: number;
+}
+
+export interface UpdateBucketRequest {
+  name: string;
+}
+
+export interface UploadObjectRequest {
+  objectName: string;
+  file: File;
+}
+
+// ===== Error Types =====
+// Note: APIError is defined as a class in src/services/api.ts
+
+// ===== Legacy Types (for backward compatibility) =====
+
 export interface User {
   id: string;
   email: string;
@@ -7,17 +98,6 @@ export interface User {
   avatar?: string;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface Bucket {
-  id: string;
-  name: string;
-  description?: string;
-  createdBy: string;
-  createdAt: Date;
-  fileCount: number;
-  size: number;
-  functions?: BucketFunction[];
 }
 
 export interface FileItem {

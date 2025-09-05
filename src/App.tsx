@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import UserManagement from './pages/UserManagement';
 import Analytics from './pages/Analytics';
 import Observability from './pages/Observability';
+import Upload from './pages/Upload';
 import Functions from './components/Functions/Functions';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -40,6 +41,7 @@ const AppRoutes = () => {
       <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
       <Route path="/buckets" element={<ProtectedRoute><Layout><BucketList /></Layout></ProtectedRoute>} />
       <Route path="/buckets/:bucketId" element={<ProtectedRoute><Layout><BucketDetails /></Layout></ProtectedRoute>} />
+      <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
       <Route path="/functions" element={<ProtectedRoute><Layout><Functions /></Layout></ProtectedRoute>} />
       <Route path="/observability" element={<ProtectedRoute><Layout><Observability /></Layout></ProtectedRoute>} />
       <Route path="/ai-chat" element={<ProtectedRoute><Layout><AIChat /></Layout></ProtectedRoute>} />

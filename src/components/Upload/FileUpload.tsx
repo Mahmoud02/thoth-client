@@ -1,43 +1,79 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { UploadIcon, FileIcon, CheckCircleIcon } from 'lucide-react';
+import { UploadIcon, FileIcon, CheckCircleIcon, Loader2 } from 'lucide-react';
+import { useUploadObject, useListBuckets, useAPIError } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
+import { Bucket } from '@/types';
 
 const FileUpload = () => {
+  const { toast } = useToast();
+  const { handleError } = useAPIError();
+  const uploadObjectMutation = useUploadObject();
+  const [searchParams] = useSearchParams();
+  
   const [selectedBucket, setSelectedBucket] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
 
-  const buckets = [
-    { id: '1', name: 'project-documents' },
-    { id: '2', name: 'media-assets' },
-    { id: '3', name: 'backup-files' },
-  ];
+  // Get buckets from API
+  const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
+
+  // Set bucket from URL parameter
+  useEffect(() => {
+    const bucketParam = searchParams.get('bucket');
+    if (bucketParam) {
+      setSelectedBucket(bucketParam);
+    }
+  }, [searchParams]);
 
   const handleFileUpload = useCallback(async (files: FileList) => {
     if (!selectedBucket) {
-      alert('Please select a bucket first');
+      toast({
+        title: "Error",
+        description: "Please select a bucket first",
+        variant: "destructive"
+      });
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    // Simulate upload progress
-    for (let i = 0; i <= 100; i += 10) {
-      setUploadProgress(i);
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-
     const fileNames = Array.from(files).map(file => file.name);
-    setUploadedFiles(prev => [...prev, ...fileNames]);
-    setIsUploading(false);
     setUploadProgress(0);
-  }, [selectedBucket]);
+
+    try {
+      // Upload files one by one
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const progress = ((i + 1) / files.length) * 100;
+        setUploadProgress(progress);
+
+        await uploadObjectMutation.mutateAsync({
+          bucketName: selectedBucket,
+          file: file
+        });
+      }
+
+      setUploadedFiles(prev => [...prev, ...fileNames]);
+      setUploadProgress(0);
+      
+      toast({
+        title: "Success",
+        description: `${files.length} file(s) uploaded successfully`,
+      });
+    } catch (error) {
+      const errorMessage = handleError(error);
+      toast({
+        title: "Upload Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      setUploadProgress(0);
+    }
+  }, [selectedBucket, uploadObjectMutation, toast, handleError]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -66,18 +102,25 @@ const FileUpload = () => {
               <CardDescription>Choose where to upload your files</CardDescription>
             </CardHeader>
             <CardContent>
-              <Select value={selectedBucket} onValueChange={setSelectedBucket}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a bucket" />
-                </SelectTrigger>
-                <SelectContent>
-                  {buckets.map((bucket) => (
-                    <SelectItem key={bucket.id} value={bucket.id}>
-                      {bucket.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isLoadingBuckets ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="ml-2 text-sm text-slate-600">Loading buckets...</span>
+                </div>
+              ) : (
+                <Select value={selectedBucket} onValueChange={setSelectedBucket}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a bucket" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buckets.map((bucket) => (
+                      <SelectItem key={bucket.id} value={bucket.name}>
+                        {bucket.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </CardContent>
           </Card>
 
@@ -110,13 +153,14 @@ const FileUpload = () => {
                     };
                     input.click();
                   }}
-                  disabled={!selectedBucket || isUploading}
+                  disabled={!selectedBucket || uploadObjectMutation.isPending}
                 >
+                  {uploadObjectMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Browse Files
                 </Button>
               </div>
 
-              {isUploading && (
+              {uploadObjectMutation.isPending && (
                 <div className="mt-6">
                   <div className="mb-2">
                     <span className="text-sm text-slate-600">Uploading files...</span>

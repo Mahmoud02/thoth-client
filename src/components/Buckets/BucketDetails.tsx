@@ -21,68 +21,28 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeftIcon, UploadIcon, DownloadIcon, MoreVerticalIcon, FileIcon, TrashIcon, ArrowUpDownIcon } from 'lucide-react';
-import { FileItem } from '@/types';
+import { ArrowLeftIcon, UploadIcon, DownloadIcon, MoreVerticalIcon, FileIcon, TrashIcon, ArrowUpDownIcon, Loader2 } from 'lucide-react';
+import { ObjectMetadata } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useGetBucket, useListObjects, useDeleteObject, useAPIError } from '@/hooks/use-api';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
+import FileUploadModal from '@/components/Upload/FileUploadModal';
 
 const BucketDetails = () => {
   const { bucketId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [bucketName] = useState('project-documents');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' |'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const itemsPerPage = 10;
   
-  const [files, setFiles] = useState<FileItem[]>([
-    {
-      id: '1',
-      name: 'project-proposal.pdf',
-      size: 2048000,
-      type: 'application/pdf',
-      bucketId: bucketId || '',
-      uploadedBy: '1',
-      uploadedAt: new Date('2024-01-15'),
-    },
-    {
-      id: '2',
-      name: 'presentation.pptx',
-      size: 5120000,
-      type: 'application/vnd.ms-powerpoint',
-      bucketId: bucketId || '',
-      uploadedBy: '1',
-      uploadedAt: new Date('2024-01-16'),
-    },
-    {
-      id: '3',
-      name: 'requirements.docx',
-      size: 1024000,
-      type: 'application/msword',
-      bucketId: bucketId || '',
-      uploadedBy: '1',
-      uploadedAt: new Date('2024-01-17'),
-    },
-    {
-      id: '4',
-      name: 'budget.xlsx',
-      size: 512000,
-      type: 'application/vnd.ms-excel',
-      bucketId: bucketId || '',
-      uploadedBy: '1',
-      uploadedAt: new Date('2024-01-18'),
-    },
-    {
-      id: '5',
-      name: 'design-mockup.png',
-      size: 3072000,
-      type: 'image/png',
-      bucketId: bucketId || '',
-      uploadedBy: '1',
-      uploadedAt: new Date('2024-01-19'),
-    },
-  ]);
+  // API Hooks
+  const { data: bucket, isLoading: isLoadingBucket } = useGetBucket(Number(bucketId), !!bucketId);
+  const { data: objects = [], isLoading: isLoadingObjects } = useListObjects(bucket?.name || '', !!bucket?.name);
+  const deleteObjectMutation = useDeleteObject();
+  const { handleError } = useAPIError();
 
   const formatFileSize = (bytes: number) => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -95,12 +55,27 @@ const BucketDetails = () => {
     return <FileIcon className="w-4 h-4 text-blue-600" />;
   };
 
-  const handleDeleteFile = (fileId: string) => {
-    setFiles(files.filter(file => file.id !== fileId));
-    toast({
-      title: "Success",
-      description: "File deleted successfully",
-    });
+  const handleDeleteFile = async (objectName: string) => {
+    if (!bucket?.name) return;
+    
+    try {
+      await deleteObjectMutation.mutateAsync({
+        bucketName: bucket.name,
+        objectName: objectName
+      });
+      
+      toast({
+        title: "Success",
+        description: "File deleted successfully",
+      });
+    } catch (error) {
+      const apiError = handleError(error);
+      toast({
+        title: "Error",
+        description: apiError.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSort = (field: string) => {
@@ -112,25 +87,25 @@ const BucketDetails = () => {
     }
   };
 
-  const sortedFiles = [...files].sort((a, b) => {
+  const sortedFiles = [...(objects || [])].sort((a, b) => {
     let aVal, bVal;
     
     switch (sortBy) {
       case 'name':
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
+        aVal = a.objectName.toLowerCase();
+        bVal = b.objectName.toLowerCase();
         break;
       case 'size':
         aVal = a.size;
         bVal = b.size;
         break;
       case 'type':
-        aVal = a.type.toLowerCase();
-        bVal = b.type.toLowerCase();
+        aVal = a.contentType.toLowerCase();
+        bVal = b.contentType.toLowerCase();
         break;
       case 'uploadedAt':
-        aVal = a.uploadedAt.getTime();
-        bVal = b.uploadedAt.getTime();
+        aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         break;
       default:
         return 0;
@@ -145,6 +120,33 @@ const BucketDetails = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedFiles = sortedFiles.slice(startIndex, startIndex + itemsPerPage);
 
+  if (isLoadingBucket) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs />
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-lg text-slate-600">Loading bucket...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!bucket) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs />
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold text-slate-900">Bucket not found</h1>
+          <p className="text-slate-600 mt-2">The requested bucket could not be found.</p>
+          <Button onClick={() => navigate('/buckets')} className="mt-4">
+            Back to Buckets
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Breadcrumbs />
@@ -158,7 +160,7 @@ const BucketDetails = () => {
           <ArrowLeftIcon className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">{bucketName}</h1>
+          <h1 className="text-3xl font-bold text-slate-900">{bucket.name}</h1>
           <p className="text-slate-600 mt-2">Bucket contents and file management</p>
         </div>
       </div>
@@ -170,7 +172,7 @@ const BucketDetails = () => {
             <CardDescription>Number of files in this bucket</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{files.length}</p>
+            <p className="text-3xl font-bold text-blue-600">{objects?.length || 0}</p>
           </CardContent>
         </Card>
 
@@ -181,7 +183,7 @@ const BucketDetails = () => {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {formatFileSize(files.reduce((total, file) => total + file.size, 0))}
+              {formatFileSize((objects || []).reduce((total, file) => total + (file.size || 0), 0))}
             </p>
           </CardContent>
         </Card>
@@ -192,7 +194,11 @@ const BucketDetails = () => {
             <CardDescription>File management operations</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button className="w-full" size="sm">
+            <Button 
+              className="w-full" 
+              size="sm"
+              onClick={() => setIsUploadModalOpen(true)}
+            >
               <UploadIcon className="w-4 h-4 mr-2" />
               Upload Files
             </Button>
@@ -250,58 +256,82 @@ const BucketDetails = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedFiles.map((file) => (
-                <TableRow key={file.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center space-x-2">
-                      {getFileTypeIcon(file.type)}
-                      <span>{file.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{file.type.split('/')[1]}</Badge>
-                  </TableCell>
-                  <TableCell>{formatFileSize(file.size)}</TableCell>
-                  <TableCell>{file.uploadedAt.toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVerticalIcon className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem>
-                          <DownloadIcon className="w-4 h-4 mr-2" />
-                          Download
-                        </DropdownMenuItem>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                              <TrashIcon className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete File</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{file.name}"? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteFile(file.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {isLoadingObjects ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+                    <span className="text-slate-600">Loading files...</span>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : paginatedFiles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <FileIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500">No files in this bucket</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedFiles.map((file) => (
+                  <TableRow key={file.objectName}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center space-x-2">
+                        {getFileTypeIcon(file.contentType || 'unknown')}
+                        <span>{file.objectName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {file.contentType ? file.contentType.split('/')[1] || 'Unknown' : 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatFileSize(file.size)}</TableCell>
+                    <TableCell>
+                      {file.createdAt ? new Date(file.createdAt).toLocaleDateString() : 'Unknown'}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVerticalIcon className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem>
+                            <DownloadIcon className="w-4 h-4 mr-2" />
+                            Download
+                          </DropdownMenuItem>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <TrashIcon className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete File</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{file.objectName}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteFile(file.objectName)}
+                                  disabled={deleteObjectMutation.isPending}
+                                >
+                                  {deleteObjectMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
 
@@ -347,6 +377,13 @@ const BucketDetails = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* File Upload Modal */}
+      <FileUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        preselectedBucketName={bucket?.name}
+      />
     </div>
   );
 };

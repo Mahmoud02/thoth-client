@@ -42,7 +42,7 @@ const Breadcrumbs = () => {
             const displayName = breadcrumbNames[name] || name;
 
             return (
-              <React.Fragment key={name}>
+              <div key={name} className="contents">
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   {isLast ? (
@@ -53,7 +53,7 @@ const Breadcrumbs = () => {
                     </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
-              </React.Fragment>
+              </div>
             );
           })}
         </BreadcrumbList>

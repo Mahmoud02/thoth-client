@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,14 +26,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { FolderIcon, PlusIcon, MoreVerticalIcon, GridIcon, ListIcon, TrashIcon, EditIcon, ArrowUpDownIcon } from 'lucide-react';
-import { Bucket } from '@/types';
+import { FolderIcon, PlusIcon, MoreVerticalIcon, GridIcon, ListIcon, TrashIcon, EditIcon, ArrowUpDownIcon, Loader2 } from 'lucide-react';
+import { Bucket, CreateBucketRequest } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCreateBucket, useUpdateBucket, useDeleteBucket, useListBuckets, useAPIError } from '@/hooks/use-api';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
 
 const BucketList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { handleError } = useAPIError();
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -45,35 +47,11 @@ const BucketList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  const [buckets, setBuckets] = useState<Bucket[]>([
-    {
-      id: '1',
-      name: 'project-documents',
-      description: 'All project related documents and files',
-      createdBy: '1',
-      createdAt: new Date('2024-01-15'),
-      fileCount: 24,
-      size: 1024000,
-    },
-    {
-      id: '2',
-      name: 'media-assets',
-      description: 'Images, videos, and other media files',
-      createdBy: '1',
-      createdAt: new Date('2024-01-20'),
-      fileCount: 156,
-      size: 5120000,
-    },
-    {
-      id: '3',
-      name: 'backup-files',
-      description: 'System backups and archived data',
-      createdBy: '1',
-      createdAt: new Date('2024-02-01'),
-      fileCount: 8,
-      size: 2048000,
-    },
-  ]);
+  // API Hooks
+  const createBucketMutation = useCreateBucket();
+  const updateBucketMutation = useUpdateBucket();
+  const deleteBucketMutation = useDeleteBucket();
+  const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
 
   const formatFileSize = (bytes: number) => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -82,7 +60,7 @@ const BucketList = () => {
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const handleCreateBucket = () => {
+  const handleCreateBucket = async () => {
     if (!newBucketName.trim()) {
       toast({
         title: "Error",
@@ -92,64 +70,90 @@ const BucketList = () => {
       return;
     }
 
-    const newBucket: Bucket = {
-      id: Date.now().toString(),
-      name: newBucketName.trim(),
-      description: newBucketDescription.trim(),
-      createdBy: '1',
-      createdAt: new Date(),
-      fileCount: 0,
-      size: 0,
-    };
+    try {
+      const createRequest: CreateBucketRequest = {
+        name: newBucketName.trim(),
+        namespaceId: 1, // Default namespace for now
+      };
 
-    setBuckets([...buckets, newBucket]);
-    setNewBucketName('');
-    setNewBucketDescription('');
-    setIsCreateDialogOpen(false);
-    
-    toast({
-      title: "Success",
-      description: "Bucket created successfully",
-    });
+      await createBucketMutation.mutateAsync(createRequest);
+      
+      setNewBucketName('');
+      setNewBucketDescription('');
+      setIsCreateDialogOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Bucket created successfully",
+      });
+    } catch (error) {
+      const apiError = handleError(error);
+      toast({
+        title: "Error",
+        description: apiError.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEditBucket = () => {
+  const handleEditBucket = async () => {
     if (!editingBucket || !newBucketName.trim()) return;
 
-    setBuckets(buckets.map(bucket => 
-      bucket.id === editingBucket.id 
-        ? { ...bucket, name: newBucketName.trim(), description: newBucketDescription.trim() }
-        : bucket
-    ));
+    try {
+      await updateBucketMutation.mutateAsync({
+        bucketId: editingBucket.id,
+        data: { name: newBucketName.trim() }
+      });
 
-    setIsEditDialogOpen(false);
-    setEditingBucket(null);
-    setNewBucketName('');
-    setNewBucketDescription('');
+      setIsEditDialogOpen(false);
+      setEditingBucket(null);
+      setNewBucketName('');
+      setNewBucketDescription('');
 
-    toast({
-      title: "Success",
-      description: "Bucket updated successfully",
-    });
+      toast({
+        title: "Success",
+        description: "Bucket updated successfully",
+      });
+    } catch (error) {
+      const apiError = handleError(error);
+      toast({
+        title: "Error",
+        description: apiError.message,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteBucket = (bucketId: string) => {
-    setBuckets(buckets.filter(bucket => bucket.id !== bucketId));
-    toast({
-      title: "Success",
-      description: "Bucket deleted successfully",
-    });
+  const handleDeleteBucket = async (bucketId: number) => {
+    try {
+      await deleteBucketMutation.mutateAsync(bucketId);
+      toast({
+        title: "Success",
+        description: "Bucket deleted successfully",
+      });
+    } catch (error) {
+      const apiError = handleError(error);
+      toast({
+        title: "Error",
+        description: apiError.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const openEditDialog = (bucket: Bucket) => {
     setEditingBucket(bucket);
     setNewBucketName(bucket.name);
-    setNewBucketDescription(bucket.description);
+    setNewBucketDescription(''); // API doesn't have description field
     setIsEditDialogOpen(true);
   };
 
-  const handleBucketClick = (bucketId: string) => {
+  const handleBucketClick = (bucketId: number) => {
     navigate(`/buckets/${bucketId}`);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
   const handleSort = (field: string) => {
@@ -169,17 +173,9 @@ const BucketList = () => {
         aVal = a.name.toLowerCase();
         bVal = b.name.toLowerCase();
         break;
-      case 'fileCount':
-        aVal = a.fileCount;
-        bVal = b.fileCount;
-        break;
-      case 'size':
-        aVal = a.size;
-        bVal = b.size;
-        break;
       case 'createdAt':
-        aVal = a.createdAt.getTime();
-        bVal = b.createdAt.getTime();
+        aVal = new Date(a.createdAt).getTime();
+        bVal = new Date(b.createdAt).getTime();
         break;
       default:
         return 0;
@@ -193,6 +189,18 @@ const BucketList = () => {
   const totalPages = Math.ceil(sortedBuckets.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedBuckets = sortedBuckets.slice(startIndex, startIndex + itemsPerPage);
+
+  if (isLoadingBuckets) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs />
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-lg text-slate-600">Loading buckets...</span>
+        </div>
+      </div>
+    );
+  }
 
   const GridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -256,7 +264,7 @@ const BucketList = () => {
               <div>
                 <CardTitle className="text-lg">{bucket.name}</CardTitle>
                 <CardDescription className="text-sm">
-                  {bucket.description}
+                  Namespace ID: {bucket.namespaceId}
                 </CardDescription>
               </div>
             </div>
@@ -265,20 +273,18 @@ const BucketList = () => {
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-4">
                 <div>
-                  <p className="text-2xl font-bold text-slate-900">{bucket.fileCount}</p>
+                  <p className="text-2xl font-bold text-slate-900">-</p>
                   <p className="text-sm text-slate-500">Files</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {formatFileSize(bucket.size)}
-                  </p>
+                  <p className="text-2xl font-bold text-slate-900">-</p>
                   <p className="text-sm text-slate-500">Size</p>
                 </div>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <Badge variant="secondary" className="text-xs">
-                Created {bucket.createdAt.toLocaleDateString()}
+                Created {formatDate(bucket.createdAt)}
               </Badge>
             </div>
           </CardContent>
@@ -296,17 +302,7 @@ const BucketList = () => {
               Name <ArrowUpDownIcon className="ml-2 h-4 w-4" />
             </Button>
           </TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead>
-            <Button variant="ghost" onClick={() => handleSort('fileCount')} className="h-auto p-0">
-              Files <ArrowUpDownIcon className="ml-2 h-4 w-4" />
-            </Button>
-          </TableHead>
-          <TableHead>
-            <Button variant="ghost" onClick={() => handleSort('size')} className="h-auto p-0">
-              Size <ArrowUpDownIcon className="ml-2 h-4 w-4" />
-            </Button>
-          </TableHead>
+          <TableHead>Namespace</TableHead>
           <TableHead>
             <Button variant="ghost" onClick={() => handleSort('createdAt')} className="h-auto p-0">
               Created <ArrowUpDownIcon className="ml-2 h-4 w-4" />
@@ -326,10 +322,8 @@ const BucketList = () => {
               <FolderIcon className="w-4 h-4 text-blue-600" />
               <span>{bucket.name}</span>
             </TableCell>
-            <TableCell>{bucket.description}</TableCell>
-            <TableCell>{bucket.fileCount}</TableCell>
-            <TableCell>{formatFileSize(bucket.size)}</TableCell>
-            <TableCell>{bucket.createdAt.toLocaleDateString()}</TableCell>
+            <TableCell>{bucket.namespaceId}</TableCell>
+            <TableCell>{formatDate(bucket.createdAt)}</TableCell>
             <TableCell>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -392,8 +386,6 @@ const BucketList = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="fileCount">Files</SelectItem>
-              <SelectItem value="size">Size</SelectItem>
               <SelectItem value="createdAt">Date</SelectItem>
             </SelectContent>
           </Select>
@@ -453,7 +445,13 @@ const BucketList = () => {
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateBucket}>Create Bucket</Button>
+                <Button 
+                  onClick={handleCreateBucket}
+                  disabled={createBucketMutation.isPending}
+                >
+                  {createBucketMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create Bucket
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -545,7 +543,13 @@ const BucketList = () => {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditBucket}>Update Bucket</Button>
+            <Button 
+              onClick={handleEditBucket}
+              disabled={updateBucketMutation.isPending}
+            >
+              {updateBucketMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Update Bucket
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

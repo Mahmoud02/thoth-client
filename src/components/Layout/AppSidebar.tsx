@@ -26,7 +26,8 @@ import {
   DatabaseIcon,
   MessageSquareIcon,
   FunctionSquareIcon,
-  ActivityIcon
+  ActivityIcon,
+  UploadIcon
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -49,6 +50,7 @@ const AppSidebar = () => {
     const baseItems = [
       { path: '/dashboard', label: 'Dashboard', icon: DatabaseIcon },
       { path: '/buckets', label: 'Buckets', icon: FolderIcon },
+      { path: '/upload', label: 'Upload Files', icon: UploadIcon },
       { path: '/functions', label: 'Functions', icon: FunctionSquareIcon },
       { path: '/observability', label: 'Observability', icon: ActivityIcon },
       { path: '/ai-chat', label: 'AI Chat', icon: MessageSquareIcon },

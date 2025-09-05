@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FolderIcon, FileIcon, UsersIcon, HardDriveIcon } from 'lucide-react';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
+import APIStatus from '@/components/Debug/APIStatus';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -51,7 +52,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
@@ -98,6 +99,8 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        <APIStatus />
       </div>
     </div>
   );
