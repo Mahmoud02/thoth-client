@@ -21,6 +21,7 @@ export const queryKeys = {
   buckets: ['buckets'] as const,
   bucket: (id: number) => ['buckets', id] as const,
   objects: (bucketName: string) => ['objects', bucketName] as const,
+  availableFunctions: ['availableFunctions'] as const,
 } as const;
 
 // Namespace Hooks
@@ -223,6 +224,15 @@ export const useQueryRAG = () => {
   return useMutation({
     mutationFn: ({ q, bucket }: { q: string; bucket: string }) => 
       apiClient.queryRAG(q, bucket),
+  });
+};
+
+// Available Functions hooks
+export const useGetAvailableFunctions = () => {
+  return useQuery({
+    queryKey: queryKeys.availableFunctions,
+    queryFn: () => apiClient.getAvailableFunctions(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 

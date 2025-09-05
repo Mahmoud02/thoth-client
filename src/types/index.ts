@@ -171,3 +171,22 @@ export interface FunctionChain {
   steps: FunctionStep[];
   isActive: boolean;
 }
+
+// ===== Available Functions API Types =====
+
+export interface FunctionProperty {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+  defaultValue: any;
+}
+
+export interface AvailableFunction {
+  functionId: string;
+  functionName: string;
+  functionType: 'SIZE_LIMIT' | 'EXTENSION_VALIDATOR' | 'CONTENT_VALIDATOR' | 'NAME_VALIDATOR';
+  description: string;
+  properties: FunctionProperty[];
+  exampleConfig: Record<string, any>;
+}

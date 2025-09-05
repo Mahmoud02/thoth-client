@@ -18,211 +18,203 @@ import {
   SettingsIcon,
   FolderIcon
 } from 'lucide-react';
-import { FunctionChain, FunctionStep, Bucket } from '@/types';
+import { FunctionChain, FunctionStep, Bucket, AvailableFunction } from '@/types';
+import { useGetAvailableFunctions, useListBuckets, useAddBucketFunctions } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
 import Breadcrumbs from '@/components/Layout/Breadcrumbs';
+import ConfiguredFunction from './ConfiguredFunction';
+
+// Helper function to map available functions to UI format
+const mapAvailableFunctionToFunctionStep = (func: AvailableFunction): FunctionStep => {
+  const getIcon = (functionType: string) => {
+    switch (functionType) {
+      case 'SIZE_LIMIT':
+        return ScaleIcon;
+      case 'EXTENSION_VALIDATOR':
+        return FileTypeIcon;
+      case 'CONTENT_VALIDATOR':
+        return CheckCircleIcon;
+      case 'NAME_VALIDATOR':
+        return ShieldIcon;
+      default:
+        return SettingsIcon;
+    }
+  };
+
+  const getType = (functionType: string): 'validation' | 'security' | 'processing' => {
+    switch (functionType) {
+      case 'SIZE_LIMIT':
+      case 'EXTENSION_VALIDATOR':
+      case 'CONTENT_VALIDATOR':
+      case 'NAME_VALIDATOR':
+        return 'validation';
+      default:
+        return 'processing';
+    }
+  };
+
+  return {
+    id: func.functionId,
+    name: func.functionName,
+    description: func.description,
+    type: getType(func.functionType),
+    icon: getIcon(func.functionType),
+    parameters: func.exampleConfig,
+    order: 0,
+  };
+};
 
 const Functions = () => {
-  // Mock buckets data
-  const [buckets] = useState<Bucket[]>([
-    {
-      id: 'bucket-1',
-      name: 'Documents',
-      description: 'Office documents and PDFs',
-      createdBy: 'user-1',
-      createdAt: new Date(),
-      fileCount: 45,
-      size: 1024000,
-    },
-    {
-      id: 'bucket-2',
-      name: 'Images',
-      description: 'Photos and graphics',
-      createdBy: 'user-1', 
-      createdAt: new Date(),
-      fileCount: 120,
-      size: 5120000,
-    },
-    {
-      id: 'bucket-3',
-      name: 'Media Files',
-      description: 'Videos and audio files',
-      createdBy: 'user-1',
-      createdAt: new Date(),
-      fileCount: 20,
-      size: 10240000,
-    },
-  ]);
+  // Get data from API
+  const { data: bucketsData = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
+  const { data: availableFunctionsData = [], isLoading: isLoadingFunctions } = useGetAvailableFunctions();
 
-  const [availableFunctions] = useState<FunctionStep[]>([
-    {
-      id: '1',
-      name: 'File Size Check',
-      description: 'Validates file size limits',
-      type: 'validation',
-      icon: ScaleIcon,
-      parameters: { maxSize: '10MB' },
-      order: 0,
-    },
-    {
-      id: '2',
-      name: 'File Extension Check',
-      description: 'Validates allowed file extensions',
-      type: 'validation',
-      icon: FileTypeIcon,
-      parameters: { allowedExtensions: ['.jpg', '.png', '.pdf'] },
-      order: 0,
-    },
-    {
-      id: '3',
-      name: 'Virus Scan',
-      description: 'Scans files for malware',
-      type: 'security',
-      icon: ShieldIcon,
-      parameters: {},
-      order: 0,
-    },
-    {
-      id: '4',
-      name: 'Content Validation',
-      description: 'Validates file content and structure',
-      type: 'validation',
-      icon: CheckCircleIcon,
-      parameters: {},
-      order: 0,
-    },
-  ]);
+  // Transform API data to UI format
+  const buckets = bucketsData.map(bucket => ({
+    id: bucket.id.toString(),
+    name: bucket.name,
+    description: `Bucket in namespace ${bucket.namespaceId}`,
+    createdBy: 'system',
+    createdAt: new Date(bucket.createdAt),
+    fileCount: 0, // This would need a separate API call
+    size: 0, // This would need a separate API call
+  }));
 
-  const [functionChains, setFunctionChains] = useState<FunctionChain[]>([
-    {
-      id: '1',
-      name: 'Standard Upload Chain',
-      description: 'Basic validation for all uploads',
-      bucketId: 'bucket-1',
-      steps: [
-        { ...availableFunctions[0], order: 0 },
-        { ...availableFunctions[1], order: 1 },
-      ],
-      isActive: true,
-    },
-  ]);
+  const availableFunctions: FunctionStep[] = availableFunctionsData.map(mapAvailableFunctionToFunctionStep);
 
-  const [selectedChain, setSelectedChain] = useState<string>('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newChainName, setNewChainName] = useState('');
-  const [newChainDescription, setNewChainDescription] = useState('');
+  // Bucket-specific function configurations
+  const [bucketConfigurations, setBucketConfigurations] = useState<Record<string, any[]>>({});
   const [selectedBucketId, setSelectedBucketId] = useState<string>('');
+  const [lastSavedBucket, setLastSavedBucket] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination || !selectedChain) return;
+  // Add function to bucket configuration
+  const addFunctionToBucket = (functionId: string) => {
+    if (!selectedBucketId) return;
 
-    const chain = functionChains.find(c => c.id === selectedChain);
-    if (!chain) return;
-
-    const items = Array.from(chain.steps);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    // Update order
-    const updatedItems = items.map((item, index) => ({
-      ...item,
-      order: index,
-    }));
-
-    setFunctionChains(prev =>
-      prev.map(c =>
-        c.id === selectedChain
-          ? { ...c, steps: updatedItems }
-          : c
-      )
-    );
-  };
-
-  const addFunctionToChain = (functionId: string) => {
-    if (!selectedChain) return;
-
-    const func = availableFunctions.find(f => f.id === functionId);
+    const func = availableFunctionsData.find(f => f.functionId === functionId);
     if (!func) return;
 
-    const chain = functionChains.find(c => c.id === selectedChain);
-    if (!chain) return;
-
-    const newStep: FunctionStep = {
-      id: func.id,
-      name: func.name,
-      description: func.description,
-      type: func.type,
-      icon: func.icon,
-      parameters: func.parameters,
-      order: chain.steps.length,
+    const newConfiguration = {
+      type: func.functionType,
+      properties: func.exampleConfig || {}
     };
 
-    setFunctionChains(prev =>
-      prev.map(c =>
-        c.id === selectedChain
-          ? { ...c, steps: [...c.steps, newStep] }
-          : c
-      )
-    );
+    setBucketConfigurations(prev => ({
+      ...prev,
+      [selectedBucketId]: [...(prev[selectedBucketId] || []), newConfiguration]
+    }));
+
+    // Show immediate feedback
+    toast({
+      title: "Function added",
+      description: `${func.functionName} added to ${selectedBucket?.name}`,
+    });
   };
 
-  const removeFunctionFromChain = (functionId: string) => {
-    if (!selectedChain) return;
+  // Remove function from bucket configuration
+  const removeFunctionFromBucket = (index: number) => {
+    if (!selectedBucketId) return;
 
-    setFunctionChains(prev =>
-      prev.map(c =>
-        c.id === selectedChain
-          ? { 
-              ...c, 
-              steps: c.steps
-                .filter(s => s.id !== functionId)
-                .map((s, index) => ({ ...s, order: index }))
-            }
-          : c
-      )
-    );
+    const configs = bucketConfigurations[selectedBucketId] || [];
+    const removedConfig = configs[index];
+    const func = availableFunctionsData.find(f => f.functionType === removedConfig?.type);
+
+    setBucketConfigurations(prev => ({
+      ...prev,
+      [selectedBucketId]: prev[selectedBucketId]?.filter((_, i) => i !== index) || []
+    }));
+
+    // Show feedback
+    if (func) {
+      toast({
+        title: "Function removed",
+        description: `${func.functionName} removed from ${selectedBucket?.name}`,
+      });
+    }
   };
 
-  const createNewChain = () => {
-    const newChain: FunctionChain = {
-      id: Date.now().toString(),
-      name: newChainName,
-      description: newChainDescription,
-      bucketId: selectedBucketId,
-      steps: [],
-      isActive: false,
-    };
+  // Update function configuration
+  const updateFunctionConfiguration = (index: number, configuration: any) => {
+    if (!selectedBucketId) return;
 
-    setFunctionChains(prev => [...prev, newChain]);
-    setNewChainName('');
-    setNewChainDescription('');
-    setSelectedBucketId('');
-    setIsDialogOpen(false);
+    setBucketConfigurations(prev => ({
+      ...prev,
+      [selectedBucketId]: prev[selectedBucketId]?.map((config, i) => 
+        i === index ? configuration : config
+      ) || []
+    }));
   };
 
-  const updateChainBucket = (chainId: string, bucketId: string) => {
-    setFunctionChains(prev =>
-      prev.map(c =>
-        c.id === chainId
-          ? { ...c, bucketId }
-          : c
-      )
-    );
+  // Reorder functions
+  const reorderFunction = (index: number, direction: 'up' | 'down') => {
+    if (!selectedBucketId) return;
+
+    const configs = bucketConfigurations[selectedBucketId] || [];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (newIndex < 0 || newIndex >= configs.length) return;
+
+    const newConfigs = [...configs];
+    [newConfigs[index], newConfigs[newIndex]] = [newConfigs[newIndex], newConfigs[index]];
+    
+    setBucketConfigurations(prev => ({
+      ...prev,
+      [selectedBucketId]: newConfigs
+    }));
   };
 
-  const toggleChainStatus = (chainId: string) => {
-    setFunctionChains(prev =>
-      prev.map(c =>
-        c.id === chainId
-          ? { ...c, isActive: !c.isActive }
-          : c
-      )
-    );
+  // Save configuration to backend
+  const addBucketFunctionsMutation = useAddBucketFunctions();
+  
+  const saveConfiguration = async () => {
+    if (!selectedBucketId) return;
+
+    const configs = bucketConfigurations[selectedBucketId] || [];
+    if (configs.length === 0) {
+      toast({
+        title: "No functions to save",
+        description: "Add some functions before saving the configuration.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addBucketFunctionsMutation.mutateAsync({
+        bucketId: parseInt(selectedBucketId),
+        configs: configs.map((config, index) => ({
+          type: config.type,
+          properties: {
+            ...config.properties,
+            order: index + 1
+          }
+        }))
+      });
+      
+      setLastSavedBucket(selectedBucketId);
+      toast({
+        title: "Configuration saved successfully!",
+        description: `${configs.length} function(s) configured for ${selectedBucket?.name}`,
+      });
+    } catch (error) {
+      console.error('Failed to save configuration:', error);
+      toast({
+        title: "Failed to save configuration",
+        description: "Please check your configuration and try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const selectedChainData = functionChains.find(c => c.id === selectedChain);
-  const getBucketName = (bucketId: string) => {
-    const bucket = buckets.find(b => b.id === bucketId);
-    return bucket?.name || 'No bucket assigned';
+  const selectedBucket = buckets.find(b => b.id === selectedBucketId);
+  const currentConfigurations = selectedBucketId ? bucketConfigurations[selectedBucketId] || [] : [];
+
+  // Check if a function is already selected for the current bucket
+  const isFunctionSelected = (functionId: string) => {
+    if (!selectedBucketId) return false;
+    const configs = bucketConfigurations[selectedBucketId] || [];
+    return configs.some(config => config.type === functionId);
   };
 
   return (
@@ -231,244 +223,176 @@ const Functions = () => {
       
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Function Management</h1>
-        <p className="text-slate-600 mt-2">Configure pre-upload validation and processing chains</p>
+        <p className="text-slate-600 mt-2">Configure validation and processing functions for your buckets</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 w-full">
-        {/* Available Functions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Available Functions</CardTitle>
-            <CardDescription>Drag functions to build your chain</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {availableFunctions.map((func) => (
-              <div
-                key={func.id}
-                className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                onClick={() => addFunctionToChain(func.id)}
-              >
-                <div className="flex items-center space-x-2">
-                  <func.icon className="w-4 h-4 text-blue-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{func.name}</p>
-                    <p className="text-xs text-slate-500">{func.description}</p>
-                  </div>
-                  <PlusIcon className="w-4 h-4 text-slate-400" />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Function Chains */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Function Chains</CardTitle>
-                <CardDescription>Configure processing workflows for your buckets</CardDescription>
-              </div>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <PlusIcon className="w-4 h-4 mr-2" />
-                    New Chain
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Function Chain</DialogTitle>
-                    <DialogDescription>
-                      Create a new processing chain for your buckets
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="chainName">Chain Name</Label>
-                      <Input
-                        id="chainName"
-                        value={newChainName}
-                        onChange={(e) => setNewChainName(e.target.value)}
-                        placeholder="Enter chain name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="chainDescription">Description</Label>
-                      <Input
-                        id="chainDescription"
-                        value={newChainDescription}
-                        onChange={(e) => setNewChainDescription(e.target.value)}
-                        placeholder="Enter chain description"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="bucketSelect">Assign to Bucket</Label>
-                      <Select value={selectedBucketId} onValueChange={setSelectedBucketId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a bucket" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {buckets.map((bucket) => (
-                            <SelectItem key={bucket.id} value={bucket.id}>
-                              <div className="flex items-center space-x-2">
-                                <FolderIcon className="w-4 h-4" />
-                                <span>{bucket.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={createNewChain} disabled={!newChainName || !selectedBucketId}>
-                      Create Chain
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Select Chain to Configure</Label>
-              <Select value={selectedChain} onValueChange={setSelectedChain}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a function chain" />
-                </SelectTrigger>
-                <SelectContent>
-                  {functionChains.map((chain) => (
-                    <SelectItem key={chain.id} value={chain.id}>
-                      <div className="flex items-center space-x-2">
-                        <span>{chain.name}</span>
-                        <Badge variant={chain.isActive ? 'default' : 'secondary'}>
-                          {chain.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <span className="text-xs text-slate-500">
-                          → {getBucketName(chain.bucketId)}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedChainData && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">{selectedChainData.name}</h3>
-                    <p className="text-sm text-slate-600">{selectedChainData.description}</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <FolderIcon className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm text-slate-500">
-                        Assigned to: {getBucketName(selectedChainData.bucketId)}
-                      </span>
-                    </div>
-                  </div>
+      {/* Bucket Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Bucket</CardTitle>
+          <CardDescription>Choose a bucket to configure its functions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedBucketId} onValueChange={setSelectedBucketId}>
+            <SelectTrigger className="w-full max-w-md">
+              <SelectValue placeholder="Select a bucket to configure" />
+            </SelectTrigger>
+            <SelectContent>
+              {isLoadingBuckets ? (
+                <SelectItem value="loading" disabled>
                   <div className="flex items-center space-x-2">
-                    <Select 
-                      value={selectedChainData.bucketId} 
-                      onValueChange={(bucketId) => updateChainBucket(selectedChainData.id, bucketId)}
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {buckets.map((bucket) => (
-                          <SelectItem key={bucket.id} value={bucket.id}>
-                            <div className="flex items-center space-x-2">
-                              <FolderIcon className="w-4 h-4" />
-                              <span>{bucket.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant={selectedChainData.isActive ? "destructive" : "default"}
-                      onClick={() => toggleChainStatus(selectedChainData.id)}
-                    >
-                      {selectedChainData.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span>Loading buckets...</span>
                   </div>
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">Processing Steps</h4>
-                  {selectedChainData.steps.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500">
-                      <SettingsIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                      <p>No functions added to this chain</p>
-                      <p className="text-sm">Add functions from the left panel</p>
+                </SelectItem>
+              ) : buckets.length === 0 ? (
+                <SelectItem value="no-buckets" disabled>
+                  <div className="flex items-center space-x-2">
+                    <FolderIcon className="w-4 h-4" />
+                    <span>No buckets available</span>
+                  </div>
+                </SelectItem>
+              ) : (
+                buckets.map((bucket) => (
+                  <SelectItem key={bucket.id} value={bucket.id}>
+                    <div className="flex items-center space-x-2">
+                      <FolderIcon className="w-4 h-4" />
+                      <span>{bucket.name}</span>
                     </div>
-                  ) : (
-                    <DragDropContext onDragEnd={handleDragEnd}>
-                      <Droppable droppableId="function-chain">
-                        {(provided) => (
-                          <div
-                            {...provided.droppableProps}
-                            ref={provided.innerRef}
-                            className="space-y-2"
-                          >
-                            {selectedChainData.steps
-                              .sort((a, b) => a.order - b.order)
-                              .map((step, index) => (
-                                <Draggable
-                                  key={step.id}
-                                  draggableId={step.id}
-                                  index={index}
-                                >
-                                  {(provided) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      className="bg-white border rounded-lg p-3 flex items-center space-x-3"
-                                    >
-                                      <div
-                                        {...provided.dragHandleProps}
-                                        className="text-slate-400 hover:text-slate-600"
-                                      >
-                                        <GripVerticalIcon className="w-4 h-4" />
-                                      </div>
-                                      <div className="flex items-center space-x-2 flex-1">
-                                        <step.icon className="w-4 h-4 text-blue-600" />
-                                        <div>
-                                          <p className="text-sm font-medium">{step.name}</p>
-                                          <p className="text-xs text-slate-500">{step.description}</p>
-                                        </div>
-                                      </div>
-                                      <Badge variant="outline" className="text-xs">
-                                        Step {index + 1}
-                                      </Badge>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeFunctionFromChain(step.id)}
-                                      >
-                                        <TrashIcon className="w-4 h-4 text-red-500" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </DragDropContext>
-                  )}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {selectedBucketId && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+          {/* Available Functions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Available Functions</CardTitle>
+              <CardDescription>Click to add functions to {selectedBucket?.name}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoadingFunctions ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-sm text-slate-500 mt-2">Loading available functions...</p>
                 </div>
+              ) : availableFunctionsData.length === 0 ? (
+                <div className="text-center py-8">
+                  <SettingsIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm text-slate-500">No functions available</p>
+                </div>
+              ) : (
+                availableFunctionsData.map((func) => {
+                  const isSelected = isFunctionSelected(func.functionType);
+                  return (
+                    <div
+                      key={func.functionId}
+                      className={`p-3 border rounded-lg transition-colors ${
+                        isSelected 
+                          ? 'bg-green-50 border-green-200 cursor-not-allowed opacity-60' 
+                          : 'hover:bg-slate-50 cursor-pointer'
+                      }`}
+                      onClick={() => !isSelected && addFunctionToBucket(func.functionId)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <div className="text-2xl">
+                          {func.functionType === 'SIZE_LIMIT' && '⚖️'}
+                          {func.functionType === 'EXTENSION_VALIDATOR' && '📄'}
+                          {func.functionType === 'CONTENT_VALIDATOR' && '✅'}
+                          {func.functionType === 'NAME_VALIDATOR' && '🛡️'}
+                          {!['SIZE_LIMIT', 'EXTENSION_VALIDATOR', 'CONTENT_VALIDATOR', 'NAME_VALIDATOR'].includes(func.functionType) && '⚙️'}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isSelected ? 'text-green-700' : ''}`}>
+                            {func.functionName}
+                          </p>
+                          <p className={`text-xs ${isSelected ? 'text-green-600' : 'text-slate-500'}`}>
+                            {isSelected ? 'Already added to this bucket' : func.description}
+                          </p>
+                        </div>
+                        {isSelected ? (
+                          <div className="flex items-center space-x-1">
+                            <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                            <span className="text-xs text-green-600 font-medium">Added</span>
+                          </div>
+                        ) : (
+                          <PlusIcon className="w-4 h-4 text-slate-400" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Configured Functions */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Configured Functions</CardTitle>
+                  <CardDescription>Functions for {selectedBucket?.name}</CardDescription>
+                </div>
+                <Button 
+                  onClick={saveConfiguration}
+                  disabled={currentConfigurations.length === 0 || addBucketFunctionsMutation.isPending}
+                  variant={lastSavedBucket === selectedBucketId ? "outline" : "default"}
+                  className={lastSavedBucket === selectedBucketId ? "border-green-500 text-green-700 hover:bg-green-50" : ""}
+                >
+                  {addBucketFunctionsMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </>
+                  ) : lastSavedBucket === selectedBucketId ? (
+                    <>
+                      <CheckCircleIcon className="w-4 h-4 mr-2 text-green-600" />
+                      Saved
+                    </>
+                  ) : (
+                    'Save Configuration'
+                  )}
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {currentConfigurations.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <SettingsIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p>No functions configured for this bucket</p>
+                  <p className="text-sm">Add functions from the left panel</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {currentConfigurations.map((config, index) => {
+                    const func = availableFunctionsData.find(f => f.functionType === config.type);
+                    if (!func) return null;
+
+                    return (
+                      <ConfiguredFunction
+                        key={`${config.type}-${index}`}
+                        function={func}
+                        configuration={config.properties}
+                        onUpdate={(newConfig) => updateFunctionConfiguration(index, { ...config, properties: newConfig })}
+                        onRemove={() => removeFunctionFromBucket(index)}
+                        onReorder={(direction) => reorderFunction(index, direction)}
+                        canMoveUp={index > 0}
+                        canMoveDown={index < currentConfigurations.length - 1}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

@@ -12,7 +12,8 @@ import {
   RAGQueryRequest,
   RAGQueryResponse,
   AIQueryRequest,
-  AIQueryResponse
+  AIQueryResponse,
+  AvailableFunction
 } from '@/types';
 
 import { API_CONFIG } from '@/config/api';
@@ -300,6 +301,11 @@ class APIClient {
     return this.request<{ response: string }>(`/rag/query?q=${encodeURIComponent(q)}&bucket=${encodeURIComponent(bucket)}`, {
       method: 'POST',
     });
+  }
+
+  // Available Functions endpoints
+  async getAvailableFunctions(): Promise<AvailableFunction[]> {
+    return this.request<AvailableFunction[]>('/buckets/functions');
   }
 }
 
