@@ -508,18 +508,39 @@ const BucketList = () => {
         </div>
       </div>
 
-      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'grid' | 'table')}>
-        <TabsList className="hidden">
-          <TabsTrigger value="grid">Grid</TabsTrigger>
-          <TabsTrigger value="table">Table</TabsTrigger>
-        </TabsList>
-        <TabsContent value="grid">
-          <GridView />
-        </TabsContent>
-        <TabsContent value="table">
-          <TableView />
-        </TabsContent>
-      </Tabs>
+      {buckets.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <FolderIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No buckets found
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {selectedNamespaceId ? 
+                `No buckets exist in the ${namespaces.find(ns => ns.id === selectedNamespaceId)?.name || 'selected'} namespace yet.` :
+                'No buckets have been created yet.'
+              }
+            </p>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Create Your First Bucket
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'grid' | 'table')}>
+          <TabsList className="hidden">
+            <TabsTrigger value="grid">Grid</TabsTrigger>
+            <TabsTrigger value="table">Table</TabsTrigger>
+          </TabsList>
+          <TabsContent value="grid">
+            <GridView />
+          </TabsContent>
+          <TabsContent value="table">
+            <TableView />
+          </TabsContent>
+        </Tabs>
+      )}
 
       {totalPages > 1 && (
         <Pagination>

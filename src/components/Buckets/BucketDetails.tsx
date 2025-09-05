@@ -263,11 +263,19 @@ const BucketDetails = () => {
                     <span className="text-slate-600">Loading files...</span>
                   </TableCell>
                 </TableRow>
-              ) : paginatedFiles.length === 0 ? (
+              ) : (objects?.length || 0) === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <FileIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500">No files in this bucket</p>
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <FileIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No files found</h3>
+                    <p className="text-gray-600 mb-4">This bucket is empty. Upload some files to get started.</p>
+                    <Button 
+                      onClick={() => setIsUploadModalOpen(true)}
+                      size="sm"
+                    >
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                      Upload Files
+                    </Button>
                   </TableCell>
                 </TableRow>
               ) : (
