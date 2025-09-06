@@ -2,6 +2,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SidebarProvider } from './components/ui/sidebar';
 import Index from './pages/Index';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -32,6 +33,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const ProtectedLayout = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <ProtectedRoute>
+      <Layout>
+        {children}
+      </Layout>
+    </ProtectedRoute>
+  );
+};
+
 const AppRoutes = () => {
   const { user } = useAuth();
   
@@ -39,17 +50,17 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/" element={<Index />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-      <Route path="/namespaces" element={<ProtectedRoute><Layout><Namespaces /></Layout></ProtectedRoute>} />
-      <Route path="/buckets" element={<ProtectedRoute><Layout><BucketList /></Layout></ProtectedRoute>} />
-      <Route path="/buckets/:bucketId" element={<ProtectedRoute><Layout><BucketDetails /></Layout></ProtectedRoute>} />
-      <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
-      <Route path="/functions" element={<ProtectedRoute><Layout><Functions /></Layout></ProtectedRoute>} />
-      <Route path="/observability" element={<ProtectedRoute><Layout><Observability /></Layout></ProtectedRoute>} />
-      <Route path="/ai-chat" element={<ProtectedRoute><Layout><AIChat /></Layout></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><Layout><Profile /></Layout></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><Layout><UserManagement /></Layout></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+      <Route path="/namespaces" element={<ProtectedLayout><Namespaces /></ProtectedLayout>} />
+      <Route path="/buckets" element={<ProtectedLayout><BucketList /></ProtectedLayout>} />
+      <Route path="/buckets/:bucketId" element={<ProtectedLayout><BucketDetails /></ProtectedLayout>} />
+      <Route path="/upload" element={<ProtectedLayout><Upload /></ProtectedLayout>} />
+      <Route path="/functions" element={<ProtectedLayout><Functions /></ProtectedLayout>} />
+      <Route path="/observability" element={<ProtectedLayout><Observability /></ProtectedLayout>} />
+      <Route path="/ai-chat" element={<ProtectedLayout><AIChat /></ProtectedLayout>} />
+      <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
+      <Route path="/users" element={<ProtectedLayout><UserManagement /></ProtectedLayout>} />
+      <Route path="/analytics" element={<ProtectedLayout><Analytics /></ProtectedLayout>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -59,7 +70,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <SidebarProvider>
+          <AppRoutes />
+        </SidebarProvider>
       </AuthProvider>
     </BrowserRouter>
   );

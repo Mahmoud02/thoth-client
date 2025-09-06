@@ -68,9 +68,21 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
+    // Helper function to read cookie value
+    const getCookieValue = (name: string): string | null => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+      return null;
+    }
+
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(defaultOpen)
+    // Initialize with cookie value if available, otherwise use defaultOpen
+    const [_open, _setOpen] = React.useState(() => {
+      const savedState = getCookieValue(SIDEBAR_COOKIE_NAME);
+      return savedState ? savedState === 'true' : defaultOpen;
+    })
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -93,6 +105,17 @@ const SidebarProvider = React.forwardRef<
         ? setOpenMobile((open) => !open)
         : setOpen((open) => !open)
     }, [isMobile, setOpen, setOpenMobile])
+
+    // Initialize sidebar state from cookie on mount
+    React.useEffect(() => {
+      const savedState = getCookieValue(SIDEBAR_COOKIE_NAME);
+      if (savedState !== null) {
+        const isOpen = savedState === 'true';
+        if (isOpen !== _open) {
+          _setOpen(isOpen);
+        }
+      }
+    }, [])
 
     // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {

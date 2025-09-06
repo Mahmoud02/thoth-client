@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import AppSidebar from './AppSidebar';
 
 interface LayoutProps {
@@ -9,16 +8,14 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full bg-gray-50">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto p-6 w-full">
-          <div className="w-full h-full">
-            {children}
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    <div className="flex h-screen w-full bg-gray-50">
+      <AppSidebar />
+      <main className="flex-1 overflow-auto p-6 w-full">
+        <div className="w-full h-full">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 };
 

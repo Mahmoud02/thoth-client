@@ -28,7 +28,9 @@ import {
   FunctionSquareIcon,
   ActivityIcon,
   UploadIcon,
-  LayersIcon
+  LayersIcon,
+  PanelLeftCloseIcon,
+  PanelLeftIcon
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -70,20 +72,31 @@ const AppSidebar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon">
+    <>
+      <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarHeader className="p-6 border-b border-slate-200">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">CS</span>
-          </div>
-          {!collapsed && (
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">CloudStore</h1>
-              <p className="text-xs text-slate-500">File Storage Platform</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">CS</span>
             </div>
-          )}
+            {!collapsed && (
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">CloudStore</h1>
+                <p className="text-xs text-slate-500">File Storage Platform</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Enhanced Toggle Button in Header */}
+          <SidebarTrigger className="w-8 h-8 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-all duration-200 hover:shadow-md hover:border-slate-300 group">
+            {collapsed ? (
+              <PanelLeftIcon className="w-4 h-4 text-slate-600 group-hover:text-slate-800 transition-colors" />
+            ) : (
+              <PanelLeftCloseIcon className="w-4 h-4 text-slate-600 group-hover:text-slate-800 transition-colors" />
+            )}
+          </SidebarTrigger>
         </div>
-        <SidebarTrigger className="ml-auto" />
       </SidebarHeader>
 
       <SidebarContent>
@@ -131,7 +144,8 @@ const AppSidebar = () => {
           {!collapsed && "Sign Out"}
         </Button>
       </SidebarFooter>
-    </Sidebar>
+      </Sidebar>
+    </>
   );
 };
 
