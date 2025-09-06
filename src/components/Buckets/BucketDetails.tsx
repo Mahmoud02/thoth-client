@@ -36,6 +36,8 @@ const BucketDetails = () => {
   const [sortOrder, setSortOrder] = useState<'asc' |'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [ingestingFiles, setIngestingFiles] = useState<Set<string>>(new Set());
+  const [successfullyIngestedFiles, setSuccessfullyIngestedFiles] = useState<Set<string>>(new Set());
   const itemsPerPage = 10;
   
   // API Hooks
@@ -50,6 +52,11 @@ const BucketDetails = () => {
     if (bytes === 0) return '0 Bytes';
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  // Helper function to check if a file is ingested (either from API or locally marked)
+  const isFileIngested = (file: ObjectMetadata) => {
+    return file.ingested || successfullyIngestedFiles.has(file.objectName);
   };
 
   const getFileTypeIcon = (type: string) => {
@@ -82,11 +89,17 @@ const BucketDetails = () => {
   const handleIngestFile = async (objectName: string) => {
     if (!bucket?.name) return;
 
+    // Add file to ingesting set
+    setIngestingFiles(prev => new Set([...prev, objectName]));
+
     try {
       await ingestDocumentMutation.mutateAsync({
         bucket: bucket.name,
         filename: objectName
       });
+      
+      // Manually update the file status to AI Ready
+      setSuccessfullyIngestedFiles(prev => new Set([...prev, objectName]));
       
       toast({
         title: "Success",
@@ -98,6 +111,13 @@ const BucketDetails = () => {
         title: "Error",
         description: errorMessage,
         variant: "destructive"
+      });
+    } finally {
+      // Remove file from ingesting set
+      setIngestingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(objectName);
+        return newSet;
       });
     }
   };
@@ -226,26 +246,31 @@ const BucketDetails = () => {
               <UploadIcon className="w-4 h-4 mr-2" />
               Upload Files
             </Button>
-            {objects && objects.some(file => !file.ingested) && (
+            {objects && objects.some(file => !isFileIngested(file)) && (
               <Button 
                 className="w-full" 
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  const uningestedFiles = objects.filter(file => !file.ingested);
-                  // Ingest all uningested files
-                  uningestedFiles.forEach(file => {
-                    handleIngestFile(file.objectName);
-                  });
+                onClick={async () => {
+                  const uningestedFiles = objects.filter(file => !isFileIngested(file) && !ingestingFiles.has(file.objectName));
+                  // Ingest all uningested files sequentially to avoid overwhelming the server
+                  for (const file of uningestedFiles) {
+                    await handleIngestFile(file.objectName);
+                  }
                 }}
-                disabled={ingestDocumentMutation.isPending}
+                disabled={ingestingFiles.size > 0}
               >
-                {ingestDocumentMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {ingestingFiles.size > 0 ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing {ingestingFiles.size} file{ingestingFiles.size > 1 ? 's' : ''}...
+                  </>
                 ) : (
-                  <BrainIcon className="w-4 h-4 mr-2" />
+                  <>
+                    <BrainIcon className="w-4 h-4 mr-2" />
+                    Make All AI Ready
+                  </>
                 )}
-                Make All AI Ready
               </Button>
             )}
           </CardContent>
@@ -344,15 +369,20 @@ const BucketDetails = () => {
                       {file.createdAt ? new Date(file.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
                     <TableCell>
-                      {file.ingested ? (
+                      {isFileIngested(file) ? (
                         <div className="flex items-center space-x-1 text-green-600">
                           <CheckCircleIcon className="w-4 h-4" />
-                          <span className="text-sm">Ready</span>
+                          <span className="text-sm">AI Ready</span>
+                        </div>
+                      ) : ingestingFiles.has(file.objectName) ? (
+                        <div className="flex items-center space-x-1 text-blue-600">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Processing...</span>
                         </div>
                       ) : (
                         <div className="flex items-center space-x-1 text-gray-500">
                           <BrainIcon className="w-4 h-4" />
-                          <span className="text-sm">Not ingested</span>
+                          <span className="text-sm">Not Ready</span>
                         </div>
                       )}
                     </TableCell>
@@ -368,12 +398,12 @@ const BucketDetails = () => {
                             <DownloadIcon className="w-4 h-4 mr-2" />
                             Download
                           </DropdownMenuItem>
-                          {!file.ingested && (
+                          {!isFileIngested(file) && (
                             <DropdownMenuItem 
                               onClick={() => handleIngestFile(file.objectName)}
-                              disabled={ingestDocumentMutation.isPending}
+                              disabled={ingestingFiles.has(file.objectName)}
                             >
-                              {ingestDocumentMutation.isPending ? (
+                              {ingestingFiles.has(file.objectName) ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               ) : (
                                 <BrainIcon className="w-4 h-4 mr-2" />

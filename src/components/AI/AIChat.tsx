@@ -36,6 +36,8 @@ const AIChat = () => {
   const [isLoadingContext, setIsLoadingContext] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [ingestingFiles, setIngestingFiles] = useState<Set<string>>(new Set());
+  const [successfullyIngestedFiles, setSuccessfullyIngestedFiles] = useState<Set<string>>(new Set());
 
   // Get buckets from API
   const { data: buckets = [], isLoading: isLoadingBuckets } = useListBuckets(1); // Default namespace ID
@@ -47,7 +49,13 @@ const AIChat = () => {
   );
 
   const currentFiles = objects || [];
-  const ingestedFiles = currentFiles.filter(file => file.ingested);
+  
+  // Helper function to check if a file is ingested (either from API or locally marked)
+  const isFileIngested = (file: ObjectMetadata) => {
+    return file.ingested || successfullyIngestedFiles.has(file.objectName);
+  };
+  
+  const ingestedFiles = currentFiles.filter(file => isFileIngested(file));
 
   // Cleanup streaming on unmount
   useEffect(() => {
@@ -137,11 +145,17 @@ const AIChat = () => {
   const handleIngestFile = async (fileName: string) => {
     if (!selectedBucket) return;
 
+    // Add file to ingesting set
+    setIngestingFiles(prev => new Set([...prev, fileName]));
+
     try {
       await ingestDocumentMutation.mutateAsync({
         bucket: selectedBucket,
         filename: fileName
       });
+      
+      // Manually update the file status to AI Ready
+      setSuccessfullyIngestedFiles(prev => new Set([...prev, fileName]));
       
       toast({
         title: "Success",
@@ -153,6 +167,13 @@ const AIChat = () => {
         title: "Error",
         description: errorMessage,
         variant: "destructive"
+      });
+    } finally {
+      // Remove file from ingesting set
+      setIngestingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileName);
+        return newSet;
       });
     }
   };
@@ -325,20 +346,25 @@ const AIChat = () => {
                             <p className="text-sm font-medium text-slate-900 truncate">{file.objectName}</p>
                             <div className="flex items-center space-x-2">
                               <p className="text-xs text-slate-500">{file.contentType}</p>
-                              {file.ingested ? (
+                              {isFileIngested(file) ? (
                                 <div className="flex items-center space-x-1 text-green-600">
                                   <CheckCircleIcon className="w-3 h-3" />
                                   <span className="text-xs">AI Ready</span>
                                 </div>
+                              ) : ingestingFiles.has(file.objectName) ? (
+                                <div className="flex items-center space-x-1 text-blue-600">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span className="text-xs">Processing...</span>
+                                </div>
                               ) : (
                                 <div className="flex items-center space-x-1 text-gray-500">
                                   <BrainIcon className="w-3 h-3" />
-                                  <span className="text-xs">Not ingested</span>
+                                  <span className="text-xs">Not Ready</span>
                                 </div>
                               )}
                             </div>
                           </div>
-                          {!file.ingested && (
+                          {!isFileIngested(file) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -346,10 +372,10 @@ const AIChat = () => {
                                 e.stopPropagation();
                                 handleIngestFile(file.objectName);
                               }}
-                              disabled={ingestDocumentMutation.isPending}
+                              disabled={ingestingFiles.has(file.objectName)}
                               className="ml-2"
                             >
-                              {ingestDocumentMutation.isPending ? (
+                              {ingestingFiles.has(file.objectName) ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : (
                                 <BrainIcon className="w-3 h-3" />
@@ -390,15 +416,20 @@ const AIChat = () => {
                               <p className="text-sm font-medium text-slate-900 truncate">{file.objectName}</p>
                               <div className="flex items-center space-x-2">
                                 <p className="text-xs text-slate-500">{file.contentType}</p>
-                                {file.ingested ? (
+                                {isFileIngested(file) ? (
                                   <div className="flex items-center space-x-1 text-green-600">
                                     <CheckCircleIcon className="w-3 h-3" />
                                     <span className="text-xs">AI Ready</span>
                                   </div>
+                                ) : ingestingFiles.has(file.objectName) ? (
+                                  <div className="flex items-center space-x-1 text-blue-600">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span className="text-xs">Processing...</span>
+                                  </div>
                                 ) : (
                                   <div className="flex items-center space-x-1 text-gray-500">
                                     <BrainIcon className="w-3 h-3" />
-                                    <span className="text-xs">Not ingested</span>
+                                    <span className="text-xs">Not Ready</span>
                                   </div>
                                 )}
                               </div>
