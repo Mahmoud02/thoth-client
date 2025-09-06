@@ -51,12 +51,20 @@ class APIClient {
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        'accept': 'application/json',
         ...options.headers,
       },
       ...options,
     };
 
     // Debug logging
+    console.log('🔍 API Request Details:');
+    console.log('Base URL:', this.baseURL);
+    console.log('Endpoint:', endpoint);
+    console.log('Full URL:', url);
+    console.log('Method:', config.method || 'GET');
+    console.log('Headers:', config.headers);
+    console.log('Body:', config.body);
     debugAPI.logRequest(url, config);
 
     try {

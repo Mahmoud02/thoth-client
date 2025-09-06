@@ -47,18 +47,14 @@ const ConfiguredFunction: React.FC<ConfiguredFunctionProps> = ({
   };
 
   const getIcon = (functionType: string) => {
-    switch (functionType) {
-      case 'SIZE_LIMIT':
-        return '⚖️';
-      case 'EXTENSION_VALIDATOR':
-        return '📄';
-      case 'CONTENT_VALIDATOR':
-        return '✅';
-      case 'NAME_VALIDATOR':
-        return '🛡️';
-      default:
-        return '⚙️';
-    }
+    // Dynamic icon mapping - can be extended for new function types
+    const iconMap: Record<string, string> = {
+      'SIZE_LIMIT': '⚖️',
+      'EXTENSION_VALIDATOR': '📄',
+      'CONTENT_VALIDATOR': '✅',
+      'NAME_VALIDATOR': '🛡️',
+    };
+    return iconMap[functionType] || '⚙️';
   };
 
   const hasErrors = Object.keys(errors).length > 0;

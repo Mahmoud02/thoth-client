@@ -29,30 +29,20 @@ import ConfiguredFunction from './ConfiguredFunction';
 // Helper function to map available functions to UI format
 const mapAvailableFunctionToFunctionStep = (func: AvailableFunction): FunctionStep => {
   const getIcon = (functionType: string) => {
-    switch (functionType) {
-      case 'SIZE_LIMIT':
-        return ScaleIcon;
-      case 'EXTENSION_VALIDATOR':
-        return FileTypeIcon;
-      case 'CONTENT_VALIDATOR':
-        return CheckCircleIcon;
-      case 'NAME_VALIDATOR':
-        return ShieldIcon;
-      default:
-        return SettingsIcon;
-    }
+    // Dynamic icon mapping based on function type
+    const iconMap: Record<string, any> = {
+      'SIZE_LIMIT': ScaleIcon,
+      'EXTENSION_VALIDATOR': FileTypeIcon,
+      'CONTENT_VALIDATOR': CheckCircleIcon,
+      'NAME_VALIDATOR': ShieldIcon,
+    };
+    return iconMap[functionType] || SettingsIcon;
   };
 
   const getType = (functionType: string): 'validation' | 'security' | 'processing' => {
-    switch (functionType) {
-      case 'SIZE_LIMIT':
-      case 'EXTENSION_VALIDATOR':
-      case 'CONTENT_VALIDATOR':
-      case 'NAME_VALIDATOR':
-        return 'validation';
-      default:
-        return 'processing';
-    }
+    // Dynamic type mapping - you can extend this based on your needs
+    const validationTypes = ['SIZE_LIMIT', 'EXTENSION_VALIDATOR', 'CONTENT_VALIDATOR', 'NAME_VALIDATOR'];
+    return validationTypes.includes(functionType) ? 'validation' : 'processing';
   };
 
   return {
@@ -92,11 +82,13 @@ const Functions = () => {
   const [lastSavedBucket, setLastSavedBucket] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Get detailed bucket data with functions when a bucket is selected
+  // Get detailed bucket data when a bucket is selected
   const { data: selectedBucketData, isLoading: isLoadingBucketDetails } = useGetBucket(
     selectedBucketId ? parseInt(selectedBucketId) : 0,
     !!selectedBucketId
   );
+  
+  // Extract functions from bucket data
   const existingBucketFunctions = selectedBucketData?.functions || {};
 
   // Load existing bucket functions when bucket is first selected
@@ -104,7 +96,7 @@ const Functions = () => {
     if (selectedBucketId && !isLoadingBucketDetails) {
       // Only load if we don't already have configurations for this bucket
       if (!bucketConfigurations[selectedBucketId]) {
-        if (Object.keys(existingBucketFunctions).length > 0) {
+        if (existingBucketFunctions && Object.keys(existingBucketFunctions).length > 0) {
           // Convert existing functions object to our local format
           const existingConfigs = Object.entries(existingBucketFunctions).map(([functionType, config]: [string, any]) => ({
             type: functionType,
@@ -124,7 +116,7 @@ const Functions = () => {
         }
       }
     }
-  }, [selectedBucketId, isLoadingBucketDetails]);
+  }, [selectedBucketId, isLoadingBucketDetails, existingBucketFunctions]);
 
   // Clear selected bucket and configurations when namespace changes
   useEffect(() => {
@@ -142,8 +134,13 @@ const Functions = () => {
 
     const newConfiguration = {
       type: func.functionType,
-      properties: func.exampleConfig || {}
+      properties: { ...(func.exampleConfig || {}) }
     };
+    
+    // Remove any 'type' field from properties if it exists
+    if (newConfiguration.properties.type) {
+      delete newConfiguration.properties.type;
+    }
 
     setBucketConfigurations(prev => ({
       ...prev,
@@ -212,16 +209,26 @@ const Functions = () => {
     }
 
     try {
-      await addBucketFunctionsMutation.mutateAsync({
+      const requestData = {
         bucketId: parseInt(selectedBucketId),
-        configs: configs.map((config, index) => ({
-          type: config.type,
-          properties: {
-            ...config.properties,
-            order: index + 1
-          }
-        }))
-      });
+        configs: configs.map((config, index) => {
+          // Create a clean properties object without the type field
+          const cleanProperties = { ...config.properties };
+          delete cleanProperties.type; // Remove type field if it exists
+          
+          return {
+            type: config.type,
+            properties: {
+              ...cleanProperties,
+              order: index + 1
+            }
+          };
+        })
+      };
+      
+      console.log('🚀 Sending bucket functions request:', JSON.stringify(requestData, null, 2));
+      
+      await addBucketFunctionsMutation.mutateAsync(requestData);
       
       setLastSavedBucket(selectedBucketId);
       
@@ -413,11 +420,15 @@ const Functions = () => {
                     >
                       <div className="flex items-center space-x-2">
                         <div className="text-2xl">
-                          {func.functionType === 'SIZE_LIMIT' && '⚖️'}
-                          {func.functionType === 'EXTENSION_VALIDATOR' && '📄'}
-                          {func.functionType === 'CONTENT_VALIDATOR' && '✅'}
-                          {func.functionType === 'NAME_VALIDATOR' && '🛡️'}
-                          {!['SIZE_LIMIT', 'EXTENSION_VALIDATOR', 'CONTENT_VALIDATOR', 'NAME_VALIDATOR'].includes(func.functionType) && '⚙️'}
+                          {(() => {
+                            const iconMap: Record<string, string> = {
+                              'SIZE_LIMIT': '⚖️',
+                              'EXTENSION_VALIDATOR': '📄',
+                              'CONTENT_VALIDATOR': '✅',
+                              'NAME_VALIDATOR': '🛡️',
+                            };
+                            return iconMap[func.functionType] || '⚙️';
+                          })()}
                         </div>
                         <div className="flex-1">
                           <p className={`text-sm font-medium ${isSelected ? 'text-green-700' : ''}`}>

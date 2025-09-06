@@ -23,7 +23,9 @@ export interface Bucket {
   namespaceId: number;
   createdAt: string;
   updatedAt: string;
-  functions?: Record<string, any>;
+  functions?: Record<string, {
+    properties: Record<string, any>;
+  }> | null;
 }
 
 export interface ObjectMetadata {
@@ -37,11 +39,10 @@ export interface ObjectMetadata {
 }
 
 export interface BucketFunctionConfig {
-  type: 'SIZE_LIMIT' | 'EXTENSION_VALIDATOR' | 'CONTENT_VALIDATOR' | 'NAME_VALIDATOR';
-  maxSizeBytes?: number;
-  allowedExtensions?: string[];
-  allowedContentTypes?: string[];
-  namePattern?: string;
+  type: string; // Dynamic - any function type from API
+  properties: {
+    [key: string]: any; // Completely dynamic properties
+  };
 }
 
 export interface CreateBucketFunctionRequest {
@@ -50,9 +51,15 @@ export interface CreateBucketFunctionRequest {
 }
 
 export interface CreateBucketFunctionResponse {
-  bucketName: number;
+  bucketId: number;
   functionsAdded: number;
-  configValues: BucketFunctionConfig[];
+  configValues: Array<{
+    type: string;
+    properties: {
+      [key: string]: any;
+    };
+    executionOrder: number;
+  }>;
 }
 
 export interface RAGQueryRequest {
@@ -185,7 +192,7 @@ export interface FunctionProperty {
 export interface AvailableFunction {
   functionId: string;
   functionName: string;
-  functionType: 'SIZE_LIMIT' | 'EXTENSION_VALIDATOR' | 'CONTENT_VALIDATOR' | 'NAME_VALIDATOR';
+  functionType: string; // Dynamic - any function type from API
   description: string;
   properties: FunctionProperty[];
   exampleConfig: Record<string, any>;
