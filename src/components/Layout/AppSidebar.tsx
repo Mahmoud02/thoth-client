@@ -51,20 +51,16 @@ const AppSidebar = () => {
 
   const getNavItems = () => {
     const baseItems = [
-      { path: '/dashboard', label: 'Dashboard', icon: DatabaseIcon },
       { path: '/namespaces', label: 'Namespaces', icon: LayersIcon },
       { path: '/buckets', label: 'Buckets', icon: FolderIcon },
       { path: '/upload', label: 'Upload Files', icon: UploadIcon },
       { path: '/functions', label: 'Functions', icon: FunctionSquareIcon },
-      { path: '/observability', label: 'Observability', icon: ActivityIcon },
       { path: '/ai-chat', label: 'AI Chat', icon: MessageSquareIcon },
       { path: '/profile', label: 'Profile', icon: SettingsIcon },
     ];
 
-    if (user?.role === 'admin' || user?.role === 'super_admin') {
-      baseItems.splice(-1, 0, { path: '/users', label: 'User Management', icon: UsersIcon });
-      baseItems.splice(-1, 0, { path: '/analytics', label: 'Analytics', icon: BarChart3Icon });
-    }
+    // Hide unsupported pages for now
+    // Dashboard, Observability, User Management, Analytics are not supported yet
 
     return baseItems;
   };
@@ -87,11 +83,11 @@ const AppSidebar = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">CS</span>
+                <span className="text-white font-bold text-sm">T</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">CloudStore</h1>
-                <p className="text-xs text-slate-500">File Storage Platform</p>
+                <h1 className="text-xl font-bold text-slate-900">Thoth Client</h1>
+                <p className="text-xs text-slate-500">AI-Powered File Management</p>
               </div>
             </div>
             
