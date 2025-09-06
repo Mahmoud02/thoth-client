@@ -47,7 +47,7 @@ const AIChat = () => {
   );
 
   const currentFiles = objects || [];
-  const ingestedFiles = currentFiles.filter(file => file.isIngested);
+  const ingestedFiles = currentFiles.filter(file => file.ingested);
 
   // Cleanup streaming on unmount
   useEffect(() => {
@@ -325,7 +325,7 @@ const AIChat = () => {
                             <p className="text-sm font-medium text-slate-900 truncate">{file.objectName}</p>
                             <div className="flex items-center space-x-2">
                               <p className="text-xs text-slate-500">{file.contentType}</p>
-                              {file.isIngested ? (
+                              {file.ingested ? (
                                 <div className="flex items-center space-x-1 text-green-600">
                                   <CheckCircleIcon className="w-3 h-3" />
                                   <span className="text-xs">AI Ready</span>
@@ -338,7 +338,7 @@ const AIChat = () => {
                               )}
                             </div>
                           </div>
-                          {!file.isIngested && (
+                          {!file.ingested && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -379,7 +379,7 @@ const AIChat = () => {
                         <div
                           key={file.objectName}
                           className={`p-3 rounded-lg border ${
-                            file.isIngested 
+                            file.ingested 
                               ? 'border-green-200 bg-green-50' 
                               : 'border-slate-200 bg-slate-50'
                           }`}
@@ -390,7 +390,7 @@ const AIChat = () => {
                               <p className="text-sm font-medium text-slate-900 truncate">{file.objectName}</p>
                               <div className="flex items-center space-x-2">
                                 <p className="text-xs text-slate-500">{file.contentType}</p>
-                                {file.isIngested ? (
+                                {file.ingested ? (
                                   <div className="flex items-center space-x-1 text-green-600">
                                     <CheckCircleIcon className="w-3 h-3" />
                                     <span className="text-xs">AI Ready</span>

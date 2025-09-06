@@ -226,13 +226,13 @@ const BucketDetails = () => {
               <UploadIcon className="w-4 h-4 mr-2" />
               Upload Files
             </Button>
-            {objects && objects.some(file => !file.isIngested) && (
+            {objects && objects.some(file => !file.ingested) && (
               <Button 
                 className="w-full" 
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  const uningestedFiles = objects.filter(file => !file.isIngested);
+                  const uningestedFiles = objects.filter(file => !file.ingested);
                   // Ingest all uningested files
                   uningestedFiles.forEach(file => {
                     handleIngestFile(file.objectName);
@@ -344,7 +344,7 @@ const BucketDetails = () => {
                       {file.createdAt ? new Date(file.createdAt).toLocaleDateString() : 'Unknown'}
                     </TableCell>
                     <TableCell>
-                      {file.isIngested ? (
+                      {file.ingested ? (
                         <div className="flex items-center space-x-1 text-green-600">
                           <CheckCircleIcon className="w-4 h-4" />
                           <span className="text-sm">Ready</span>
@@ -368,7 +368,7 @@ const BucketDetails = () => {
                             <DownloadIcon className="w-4 h-4 mr-2" />
                             Download
                           </DropdownMenuItem>
-                          {!file.isIngested && (
+                          {!file.ingested && (
                             <DropdownMenuItem 
                               onClick={() => handleIngestFile(file.objectName)}
                               disabled={ingestDocumentMutation.isPending}
