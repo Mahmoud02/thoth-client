@@ -99,34 +99,38 @@ const Functions = () => {
   );
   const existingBucketFunctions = selectedBucketData?.functions || {};
 
-  // Load existing bucket functions when they're fetched
+  // Load existing bucket functions when bucket is first selected
   useEffect(() => {
     if (selectedBucketId && !isLoadingBucketDetails) {
-      if (Object.keys(existingBucketFunctions).length > 0) {
-        // Convert existing functions object to our local format
-        const existingConfigs = Object.entries(existingBucketFunctions).map(([functionType, config]: [string, any]) => ({
-          type: functionType,
-          properties: config.properties || {}
-        }));
+      // Only load if we don't already have configurations for this bucket
+      if (!bucketConfigurations[selectedBucketId]) {
+        if (Object.keys(existingBucketFunctions).length > 0) {
+          // Convert existing functions object to our local format
+          const existingConfigs = Object.entries(existingBucketFunctions).map(([functionType, config]: [string, any]) => ({
+            type: functionType,
+            properties: config.properties || {}
+          }));
 
-        setBucketConfigurations(prev => ({
-          ...prev,
-          [selectedBucketId]: existingConfigs
-        }));
-      } else {
-        // Clear configurations if no existing functions found
-        setBucketConfigurations(prev => ({
-          ...prev,
-          [selectedBucketId]: []
-        }));
+          setBucketConfigurations(prev => ({
+            ...prev,
+            [selectedBucketId]: existingConfigs
+          }));
+        } else {
+          // Initialize with empty array if no existing functions found
+          setBucketConfigurations(prev => ({
+            ...prev,
+            [selectedBucketId]: []
+          }));
+        }
       }
     }
-  }, [selectedBucketId, existingBucketFunctions, isLoadingBucketDetails]);
+  }, [selectedBucketId, isLoadingBucketDetails]);
 
-  // Clear selected bucket when namespace changes
+  // Clear selected bucket and configurations when namespace changes
   useEffect(() => {
     setSelectedBucketId('');
     setLastSavedBucket(null);
+    setBucketConfigurations({});
   }, [selectedNamespaceId]);
 
   // Add function to bucket configuration
@@ -145,12 +149,6 @@ const Functions = () => {
       ...prev,
       [selectedBucketId]: [...(prev[selectedBucketId] || []), newConfiguration]
     }));
-
-    // Show immediate feedback
-    toast({
-      title: "Function added",
-      description: `${func.functionName} added to ${selectedBucket?.name}`,
-    });
   };
 
   // Remove function from bucket configuration
@@ -159,20 +157,11 @@ const Functions = () => {
 
     const configs = bucketConfigurations[selectedBucketId] || [];
     const removedConfig = configs[index];
-    const func = availableFunctionsData.find(f => f.functionType === removedConfig?.type);
 
     setBucketConfigurations(prev => ({
       ...prev,
       [selectedBucketId]: prev[selectedBucketId]?.filter((_, i) => i !== index) || []
     }));
-
-    // Show feedback
-    if (func) {
-      toast({
-        title: "Function removed",
-        description: `${func.functionName} removed from ${selectedBucket?.name}`,
-      });
-    }
   };
 
   // Update function configuration
@@ -241,6 +230,19 @@ const Functions = () => {
       // Also invalidate buckets list to keep it in sync
       queryClient.invalidateQueries({ queryKey: queryKeys.buckets });
       
+      // Update local state to reflect the saved configuration
+      // This ensures the UI shows the saved state correctly
+      setBucketConfigurations(prev => ({
+        ...prev,
+        [selectedBucketId]: configs.map((config, index) => ({
+          type: config.type,
+          properties: {
+            ...config.properties,
+            order: index + 1
+          }
+        }))
+      }));
+      
       toast({
         title: "Configuration saved successfully!",
         description: `${configs.length} function(s) configured for ${selectedBucket?.name}`,
@@ -262,7 +264,9 @@ const Functions = () => {
   const isFunctionSelected = (functionId: string) => {
     if (!selectedBucketId) return false;
     const configs = bucketConfigurations[selectedBucketId] || [];
-    return configs.some(config => config.type === functionId);
+    const func = availableFunctionsData.find(f => f.functionId === functionId);
+    if (!func) return false;
+    return configs.some(config => config.type === func.functionType);
   };
 
   return (
