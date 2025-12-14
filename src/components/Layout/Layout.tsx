@@ -1,6 +1,7 @@
 
 import React from 'react';
 import AppSidebar from './AppSidebar';
+import AssistantChatbot from '@/components/AI/AssistantChatbot';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
           {children}
         </div>
       </main>
+      <AssistantChatbot />
     </div>
   );
 };

@@ -1,7 +1,7 @@
-import { 
-  Namespace, 
-  Bucket, 
-  ObjectMetadata, 
+import {
+  Namespace,
+  Bucket,
+  ObjectMetadata,
   CreateNamespaceRequest,
   UpdateNamespaceRequest,
   CreateBucketRequest,
@@ -43,11 +43,12 @@ class APIClient {
   }
 
   private async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}
+    endpoint: string,
+    options: RequestInit = {},
+    baseUrlOverride?: string
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
+    const url = `${baseUrlOverride ?? this.baseURL}${endpoint}`;
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -69,11 +70,11 @@ class APIClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       // Debug response
       const responseData = response.ok ? await response.json().catch(() => ({})) : null;
       debugAPI.logResponse(url, response, responseData);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const apiError = new APIError(
@@ -93,11 +94,11 @@ class APIClient {
       return responseData as T;
     } catch (error) {
       debugAPI.logError(url, error);
-      
+
       if (error instanceof APIError) {
         throw error;
       }
-      
+
       // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new APIError(
@@ -105,7 +106,7 @@ class APIClient {
           0
         );
       }
-      
+
       throw new APIError('An unexpected error occurred', 0);
     }
   }
@@ -234,7 +235,7 @@ class APIClient {
 
   async downloadObject(bucketName: string, objectName: string): Promise<Blob> {
     const response = await fetch(`${this.baseURL}/buckets/${bucketName}/objects/${objectName}`);
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new APIError(
@@ -319,6 +320,14 @@ class APIClient {
   // Get bucket functions configuration
   async getBucketFunctions(bucketId: number): Promise<any[]> {
     return this.request<any[]>(`/buckets/${bucketId}/functions`);
+  }
+  // AI Assistant API
+  async queryAction(query: string): Promise<{ response: string }> {
+    // Use /api as base URL instead of /api/v1 since this endpoint is not versioned
+    return this.request<{ response: string }>('/ai/thoth/query-action', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    }, '/api');
   }
 }
 
