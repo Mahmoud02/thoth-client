@@ -11,7 +11,31 @@ const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const { login, isLoading } = useAuth();
+
+  const messages = [
+    {
+      question: "How can I deploy my agent?",
+      answer: <span>It's easy! Just go to the <span className="text-primary font-medium">Deploy</span> tab and copy the embed code. 🚀</span>
+    },
+    {
+      question: "Can I customize the colors?",
+      answer: "Yes! You can match your brand in the Settings > Appearance tab. 🎨"
+    },
+    {
+      question: "Where are the chat logs?",
+      answer: "All conversations are stored in the 'Inbox' section for your review. 📝"
+    }
+  ];
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,14 +186,14 @@ const LoginForm = () => {
             {/* Chat Messages */}
             <div className="space-y-4 min-h-[300px] relative">
               {/* User Message */}
-              <div className="flex justify-end animate-chat-user opacity-0" style={{ animationDelay: '0.5s' }}>
+              <div key={`user-${currentMessageIndex}`} className="flex justify-end animate-chat-user opacity-0" style={{ animationDelay: '0.5s' }}>
                 <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl rounded-tr-sm shadow-lg max-w-[85%]">
-                  <p className="text-sm">How can I deploy my agent?</p>
+                  <p className="text-sm">{messages[currentMessageIndex].question}</p>
                 </div>
               </div>
 
               {/* Bot Typing */}
-              <div className="flex justify-start animate-chat-bot-dots opacity-0">
+              <div key={`typing-${currentMessageIndex}`} className="flex justify-start animate-chat-bot-dots opacity-0">
                 <div className="bg-zinc-700/50 px-4 py-3 rounded-2xl rounded-tl-sm shadow-md flex gap-1">
                   <div className="h-2 w-2 bg-zinc-400 rounded-full animate-dot-1"></div>
                   <div className="h-2 w-2 bg-zinc-400 rounded-full animate-dot-2"></div>
@@ -178,10 +202,10 @@ const LoginForm = () => {
               </div>
 
               {/* Bot Response */}
-              <div className="flex justify-start animate-chat-bot-message opacity-0">
+              <div key={`bot-${currentMessageIndex}`} className="flex justify-start animate-chat-bot-message opacity-0">
                 <div className="bg-zinc-700/50 text-zinc-100 px-4 py-3 rounded-2xl rounded-tl-sm shadow-md max-w-[90%]">
                   <p className="text-sm">
-                    It's easy! Just go to the <span className="text-primary font-medium">Deploy</span> tab and copy the embed code. 🚀
+                    {messages[currentMessageIndex].answer}
                   </p>
                 </div>
               </div>
