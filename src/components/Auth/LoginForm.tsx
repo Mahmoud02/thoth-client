@@ -1,12 +1,11 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Command, ArrowRight, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -17,7 +16,7 @@ const LoginForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     try {
       await login(email, password);
     } catch (err) {
@@ -32,101 +31,172 @@ const LoginForm = () => {
   ];
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-20" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-      }}></div>
-      
-      {/* Main Content */}
-      <div className="relative z-10 w-full max-w-md mx-auto px-6 space-y-6">
-        <div className="text-center">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-xl">T</span>
-            </div>
-            <h1 className="text-3xl font-bold text-white">Thoth Client</h1>
+    <div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+
+      {/* Left Column: Login Form */}
+      <div className="lg:p-8">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+          <div className="flex flex-col space-y-2 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Welcome back
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Enter your email to sign in to your account
+            </p>
           </div>
-          <p className="text-blue-100 mt-2 text-lg">AI-Powered File Management Platform</p>
+
+          <div className="grid gap-6">
+            <form onSubmit={handleSubmit}>
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    placeholder="name@example.com"
+                    type="email"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect="off"
+                    disabled={isLoading}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    placeholder="Password"
+                    type="password"
+                    autoCapitalize="none"
+                    autoComplete="current-password"
+                    disabled={isLoading}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button disabled={isLoading}>
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Sign In with Email
+                </Button>
+              </div>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with demo account
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              {demoAccounts.map((account) => (
+                <Button
+                  key={account.email}
+                  variant="outline"
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setEmail(account.email);
+                    setPassword('password');
+                  }}
+                  className="justify-between"
+                >
+                  {account.role}
+                  {email === account.email && <Check className="h-4 w-4 text-green-500" />}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <p className="px-8 text-center text-sm text-muted-foreground">
+            By clicking continue, you agree to our{" "}
+            <Link to="/terms" className="underline underline-offset-4 hover:text-primary">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" className="underline underline-offset-4 hover:text-primary">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
+
+      {/* Right Column: Chat Interface Visual */}
+      <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-l lg:flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-zinc-900" />
+
+        {/* Decorative background elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-lg pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-40 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
         </div>
 
-        <Card className="bg-white/95 backdrop-blur-sm shadow-2xl border-0">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Welcome Back</CardTitle>
-            <CardDescription className="text-slate-600">
-              Enter your credentials to access your files
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
+        <div className="relative z-20 flex flex-col items-center justify-center w-full max-w-md">
+          <div className="w-full bg-zinc-800/50 backdrop-blur-md rounded-2xl border border-white/10 p-6 shadow-2xl">
+            {/* Chat Header */}
+            <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
+                <Command className="h-5 w-5 text-white" />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
+              <div>
+                <h3 className="font-semibold text-white">Thoth Assistant</h3>
+                <p className="text-xs text-zinc-400">Always active</p>
               </div>
-              
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
 
-        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0">
-          <CardHeader>
-            <CardTitle className="text-sm text-slate-900">Demo Accounts</CardTitle>
-            <CardDescription className="text-xs text-slate-600">
-              Use these accounts to test different roles (password: "password")
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {demoAccounts.map((account) => (
-              <div
-                key={account.email}
-                className="flex justify-between items-center p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent transition-all duration-200"
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword('password');
-                }}
-              >
-                <span className="text-sm font-medium text-slate-700">{account.email}</span>
-                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">{account.role}</span>
+            {/* Chat Messages */}
+            <div className="space-y-4 min-h-[300px] relative">
+              {/* User Message */}
+              <div className="flex justify-end animate-chat-user opacity-0" style={{ animationDelay: '0.5s' }}>
+                <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl rounded-tr-sm shadow-lg max-w-[85%]">
+                  <p className="text-sm">How can I deploy my agent?</p>
+                </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+
+              {/* Bot Typing */}
+              <div className="flex justify-start animate-chat-bot-dots opacity-0">
+                <div className="bg-zinc-700/50 px-4 py-3 rounded-2xl rounded-tl-sm shadow-md flex gap-1">
+                  <div className="h-2 w-2 bg-zinc-400 rounded-full animate-dot-1"></div>
+                  <div className="h-2 w-2 bg-zinc-400 rounded-full animate-dot-2"></div>
+                  <div className="h-2 w-2 bg-zinc-400 rounded-full animate-dot-3"></div>
+                </div>
+              </div>
+
+              {/* Bot Response */}
+              <div className="flex justify-start animate-chat-bot-message opacity-0">
+                <div className="bg-zinc-700/50 text-zinc-100 px-4 py-3 rounded-2xl rounded-tl-sm shadow-md max-w-[90%]">
+                  <p className="text-sm">
+                    It's easy! Just go to the <span className="text-primary font-medium">Deploy</span> tab and copy the embed code. 🚀
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">Chat with your data</h2>
+            <p className="text-zinc-400">
+              Build, train, and deploy custom AI agents in minutes.
+            </p>
+          </div>
+        </div>
       </div>
+
     </div>
   );
 };
